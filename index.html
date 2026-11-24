@@ -327,7 +327,7 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
             <option value="schedule">أنشطة الجدول الزمني</option>
             <option value="review">مراجعة مستخلص المقاول (مقارنة، بدون حفظ)</option>
           </select></label>
-          <label>الملف<input id="im_file" type="file" accept=".xlsx,.xls,.csv"></label>
+          <label>الملف<input id="im_file" type="file" accept=".xlsx,.xls,.csv,.pdf"></label>
         </div>
         <label style="margin-top:10px">أو الصق هنا (الأعمدة مفصولة بـ Tab)
           <textarea id="im_text" rows="4" style="width:100%;font:inherit;border:1px solid #cbd5e1;border-radius:10px;padding:8px"></textarea></label>
@@ -1024,12 +1024,36 @@ function renderSteel(){
     const g = GROUPS.find(q => q.id === x.group_id);
     return '<tr><td>' + esc(x.name) + '</td><td>' + fmt(x.eng_ton) + '</td><td>' + (g ? esc(g.name + ' · ' + g.floor) : '—') + '</td>'
       + '<td>' + esc(x.handover_date || '—') + '</td><td>' + esc(steelT28(x) || '—') + '</td>'
-      + '<td><button class="btn small ghost adm-btn" data-del="' + x.id + '" data-t="steel_items">حذف</button></td></tr>';
+      + '<td><button class="btn small ghost adm-btn" data-esteel="' + x.id + '">تعديل</button> <button class="btn small ghost adm-btn" data-del="' + x.id + '" data-t="steel_items">حذف</button></td></tr>';
   }).join('');
   $('steelTable').innerHTML = '<thead><tr><th>البند</th><th>هندسي (طن)</th><th>الصبة المرتبطة</th><th>تسليم الاستشاري</th><th>تكسير 28</th><th></th></tr></thead>'
     + '<tbody>' + (sRows || '<tr><td colspan="6" class="muted">مفيش بنود</td></tr>') + '</tbody>';
 
   document.querySelectorAll('#tab-steel button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow(b.dataset.t, b.dataset.del, refreshAll)));
+  document.querySelectorAll('#tab-steel button[data-esteel]').forEach(b => b.addEventListener('click', () => editSteel(b.dataset.esteel)));
+}
+
+// تعديل بند حديد: الاسم والكمية والتواريخ والربط بالصبة
+async function editSteel(id){
+  const x = STEEL.find(q => q.id === id); if(!x) return;
+  const name = prompt('اسم البند', x.name); if(name === null) return;
+  const eng = prompt('هندسي (طن)', x.eng_ton); if(eng === null) return;
+  const hand = prompt('تاريخ التسليم للاستشاري (YYYY-MM-DD)، سيبه فاضي لو مفيش', x.handover_date || ''); if(hand === null) return;
+  const list = GROUPS.map((g, i) => (i + 1) + ' = ' + g.name + ' · ' + g.floor + ' ' + g.fasel).join('\n');
+  const cur = GROUPS.findIndex(g => g.id === x.group_id) + 1;
+  const gi = prompt('رقم الصبة المرتبطة (0 = بدون ربط)\n' + list, cur); if(gi === null) return;
+  const gidx = parseInt(gi) || 0;
+  const gid = (gidx > 0 && GROUPS[gidx - 1]) ? GROUPS[gidx - 1].id : null;
+  let t28 = null;
+  if(!gid){
+    t28 = prompt('تاريخ تكسير 28 يوم (YYYY-MM-DD)، سيبه فاضي لو مفيش', x.t28_date || ''); if(t28 === null) return;
+  }
+  const { error } = await sb.from('steel_items').update({
+    name: name.trim() || x.name, eng_ton: parseFloat(eng) || 0,
+    handover_date: hand.trim() || null, t28_date: (t28 || '').trim() || null, group_id: gid
+  }).eq('id', id);
+  if(error) alert(error.message);
+  await refreshAll();
 }
 
 async function saveDelivery(){
@@ -1438,11 +1462,48 @@ const LBL = {delivery_date:'التاريخ',tons:'الطن',diameter:'القطر
   start_date:'البداية',end_date:'النهاية',weight:'الوزن'};
 let IM = {headers:[], data:[]};
 
+// قراءة PDF: pdf.js بيطلع النص سطر سطر، والخلايا بتتفصل بالـTab. بيشتغل كويس مع الجداول البسيطة
+let PDFJS = null;
+async function loadPdfJs(){
+  if(PDFJS) return PDFJS;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload = res; s.onerror = () => rej(new Error('مكتبة الـPDF ما اتحملتش، اتأكد من النت'));
+    document.head.appendChild(s);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  PDFJS = window.pdfjsLib;
+  return PDFJS;
+}
+async function pdfRows(file){
+  const lib = await loadPdfJs();
+  const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const rows = [];
+  for(let p = 1; p <= pdf.numPages; p++){
+    const content = await (await pdf.getPage(p)).getTextContent();
+    const lines = [];
+    content.items.forEach(it => {
+      if(!it.str || !it.str.trim()) return;
+      const y = Math.round(it.transform[5]);
+      let line = lines.find(l => Math.abs(l.y - y) <= 3);
+      if(!line){ line = { y, items: [] }; lines.push(line); }
+      line.items.push({ x: it.transform[4], s: it.str.trim() });
+    });
+    // من فوق لتحت، وجوه لشمال (عربي)
+    lines.sort((a, b) => b.y - a.y).forEach(l => rows.push(l.items.sort((a, b) => b.x - a.x).map(i => i.s)));
+  }
+  return rows;
+}
+
 async function readImportSource(){
   if(typeof XLSX === 'undefined'){ $('im_msg').textContent = 'مكتبة الإكسل ما اتحملتش، اتأكد من النت وحدّث الصفحة'; return false; }
   const f = $('im_file').files[0];
   let rows;
-  if(f){
+  if(f && /\.pdf$/i.test(f.name)){
+    try { $('im_msg').textContent = 'بقرا الـPDF...'; rows = await pdfRows(f); }
+    catch(e){ $('im_msg').textContent = e.message; return false; }
+  } else if(f){
     const wb = XLSX.read(await f.arrayBuffer(), {type:'array'});
     rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:true});
   } else {
