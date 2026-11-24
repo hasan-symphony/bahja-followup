@@ -207,9 +207,10 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
           <label>الصبة<select id="p_group"></select></label>
           <label>تاريخ الصب<input id="p_date" type="date"></label>
           <label>الهندسي (م³)<input id="p_eng" type="number" step="0.01"></label>
+          <label>الفعلي (م³)<input id="p_act" type="number" step="0.01"></label>
         </div>
-        <div class="muted" style="margin:6px 0">الفعلي بياخد تلقائي من إيصالات الخرسانة المسجلة على الصبة، وبيطرح منه الكميات اللي اتسجلت في صبات قبلها.</div>
         <button class="btn" id="savePour">حفظ الصبة</button>
+        <button class="btn small ghost" id="cancelPour" style="display:none">إلغاء التعديل</button>
         <div id="pourMsg" class="err"></div>
       </div>
       <div class="card">
@@ -623,8 +624,7 @@ function renderKpis(){
 function groupStats(g){
   const pours = g.pours || [];
   const got = RECEIPTS.filter(r => r.group_id === g.id).reduce((a,r) => a + Number(r.m3 || 0), 0);
-  const hasRec = RECEIPTS.some(r => r.group_id === g.id);
-  const act = hasRec ? got : (pours.some(p => p.act_qty != null) ? pours.reduce((a,p) => a + Number(p.act_qty || 0), 0) : (g.act_qty == null ? null : Number(g.act_qty)));
+  const act = pours.some(p => p.act_qty != null) ? pours.reduce((a,p) => a + Number(p.act_qty || 0), 0) : (g.act_qty == null ? null : Number(g.act_qty));
   const eng = Number(g.eng_qty || 0);
   return { act, got, eng, pct: eng ? got / eng * 100 : null };
 }
@@ -729,36 +729,40 @@ function renderPours(){
   $('pourTable').querySelectorAll('[data-dpour]').forEach(b => b.addEventListener('click', () => deleteRow('pours', b.dataset.dpour, refreshAll)));
 }
 
+let EDIT_POUR = null;
 async function savePour(){
   const gid = $('p_group').value, date = $('p_date').value;
-  const eng = parseFloat($('p_eng').value);
+  const eng = parseFloat($('p_eng').value), act = parseFloat($('p_act').value);
   if(!gid || !date){ $('pourMsg').textContent = 'اختار الصبة واكتب تاريخ الصب'; return; }
-  // الفعلي = إجمالي إيصالات الصبة - اللي اتصب قبل كده
-  const g = GROUPS.find(x => x.id === gid);
-  const received = RECEIPTS.filter(r => r.group_id === gid).reduce((a,r) => a + Number(r.m3 || 0), 0);
-  const before = (g && g.pours || []).reduce((a,q) => a + Number(q.act_qty || 0), 0);
-  const act = Math.max(0, received - before);
-  const { error } = await sb.from('pours').insert({
+  const vals = {
     group_id: gid, pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28),
-    eng_qty: isNaN(eng) ? null : eng, act_qty: act
-  });
+    eng_qty: isNaN(eng) ? null : eng, act_qty: isNaN(act) ? null : act
+  };
+  const { error } = EDIT_POUR
+    ? await sb.from('pours').update(vals).eq('id', EDIT_POUR)
+    : await sb.from('pours').insert(vals);
   if(error){ $('pourMsg').textContent = error.message; return; }
-  $('p_eng').value = ''; $('pourMsg').textContent = '';
+  resetPourForm();
   await refreshAll();
 }
+function resetPourForm(){
+  EDIT_POUR = null;
+  $('p_eng').value = ''; $('p_act').value = ''; $('p_date').value = ''; $('pourMsg').textContent = '';
+  $('savePour').textContent = 'حفظ الصبة';
+  $('cancelPour').style.display = 'none';
+}
 
-async function editPour(id){
+function editPour(id){
   const list = GROUPS.flatMap(g => g.pours || []);
   const p = list.find(x => x.id === id); if(!p) return;
-  const date = prompt('تاريخ الصب (YYYY-MM-DD)', p.pour_date); if(!date) return;
-  const eng = prompt('الهندسي (م³)', p.eng_qty == null ? '' : p.eng_qty); if(eng === null) return;
-  const act = prompt('الفعلي من الشيت (م³)', p.act_qty == null ? '' : p.act_qty); if(act === null) return;
-  const { error } = await sb.from('pours').update({
-    pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28),
-    eng_qty: parseFloat(eng) || null, act_qty: parseFloat(act) || null
-  }).eq('id', id);
-  if(error) alert(error.message);
-  await refreshAll();
+  EDIT_POUR = id;
+  $('p_group').value = p.group_id;
+  $('p_date').value = p.pour_date;
+  $('p_eng').value = p.eng_qty == null ? '' : p.eng_qty;
+  $('p_act').value = p.act_qty == null ? '' : p.act_qty;
+  $('savePour').textContent = 'حفظ التعديل';
+  $('cancelPour').style.display = '';
+  $('p_date').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /* ---------- المحطات والإيصالات ---------- */
@@ -1208,12 +1212,18 @@ async function deleteRow(table, id, after){
 function planPct(t){
   return (today() >= t.end_date || actPct(t) >= 100) ? 100 : 0;
 }
-// الفعلي: النشاط المربوط بعنصر بيبقى 100% لما العنصر يتعلّم "كل الصبات خلصت" من تبويب الصبات.
+// الفعلي: النشاط المربوط بعنصر بيبقى 100% لما الفعلي المصبوب يوصل للهندسي الكلي للعنصر، أو لما تضغط زرار "كل الصبات خلصت" (احتياطي).
 // النشاط اليدوي بيتكتب بإيدك (0 أو 100)
 function actPct(t){
   if(t.group_id){
     const g = GROUPS.find(x => x.id === t.group_id);
-    if(g) return g.all_poured ? 100 : 0;
+    if(g){
+      if(g.all_poured) return 100;  // زرار "كل الصبات خلصت" (احتياطي يدوي)
+      // تلقائي: العنصر يبقى خلص لما الفعلي المصبوب يوصل للهندسي الكلي للعنصر
+      const total = Number(g.eng_qty || 0);
+      const act = (g.pours || []).reduce((a,p) => a + Number(p.act_qty || 0), 0);
+      return total && act >= total - 0.01 ? 100 : 0;
+    }
   }
   return Number(t.manual_pct || 0);
 }
@@ -1886,6 +1896,7 @@ $('backProjects').addEventListener('click', async () => {
 document.querySelectorAll('nav button[data-tab]').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 $('saveGroup').addEventListener('click', saveGroup);
 $('savePour').addEventListener('click', savePour);
+$('cancelPour').addEventListener('click', resetPourForm);
 $('saveTask').addEventListener('click', saveTask);
 $('saveReceipt').addEventListener('click', saveReceipt);
 $('savePlant').addEventListener('click', savePlant);
