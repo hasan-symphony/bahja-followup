@@ -8,52 +8,140 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--navy:#14213d;--navy2:#1f3a68;--bg:#eef2f7;--card:#fff;--ink:#172033;--mut:#64748b;--line:#e2e8f0;--red:#b91c1c}
+:root{--navy:#14213d;--navy2:#1f3a68;--bg:#eef2f7;--card:#fff;--ink:#172033;--mut:#64748b;--line:#e2e8f0;--red:#b91c1c;--green:#16a34a;--amber:#f59e0b}
 *{box-sizing:border-box}
 body{margin:0;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;
   background-image:linear-gradient(rgba(20,33,61,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(20,33,61,.035) 1px,transparent 1px);background-size:22px 22px}
-.top{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:16px}
-.top h1{margin:0;font-size:19px;font-weight:700}
+.top{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.top h1{margin:0;font-size:18px;font-weight:700}
 .top .sub{color:#b9c7dd;font-size:12px}
-main{max-width:720px;margin:0 auto;padding:16px}
+nav{display:flex;gap:6px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);padding:8px;position:sticky;top:0;z-index:5}
+nav button{flex:0 0 auto;border:1px solid var(--line);background:#fff;padding:8px 14px;border-radius:99px;font:inherit;cursor:pointer;white-space:nowrap}
+nav button.on{background:var(--navy2);color:#fff;border-color:var(--navy2)}
+main{max-width:900px;margin:0 auto;padding:14px}
 .card{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--navy2);border-radius:14px;padding:16px;margin-bottom:14px}
-.card h2{font-size:15px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1}
-label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--mut)}
-input{padding:10px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;color:var(--ink);width:100%}
-.btn{background:var(--navy2);color:#fff;border:0;padding:12px 16px;border-radius:10px;cursor:pointer;font:inherit;margin-top:10px;width:100%}
+.card h2{font-size:15px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card h2 span{font-size:12px;color:var(--mut);font-weight:400}
+.form{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:640px){.form{grid-template-columns:repeat(3,1fr)}}
+label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--mut)}
+input,select{padding:9px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;color:var(--ink);width:100%;background:#fff}
+.btn{background:var(--navy2);color:#fff;border:0;padding:11px 16px;border-radius:10px;cursor:pointer;font:inherit;margin-top:6px}
 .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:6px 10px;font-size:12px;margin:0}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:#eef3fb;color:var(--navy);font-weight:700;border-bottom:2px solid #c7d4ea}
+tbody tr:nth-child(even) td{background:#fbfcfe}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;color:#fff;font-weight:600}
+.ok{background:var(--green)}.bad{background:var(--red)}.mid{background:var(--amber)}
 .muted{color:var(--mut);font-size:12.5px}
 .err{color:var(--red);font-size:13px;margin-top:8px}
+.hidden{display:none!important}
 .proj{display:block;width:100%;text-align:right;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:8px;font:inherit;cursor:pointer}
 .proj b{display:block;font-size:15px}
-.hidden{display:none!important}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+@media(min-width:640px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi small{color:var(--mut);display:block;font-size:12px}
+.kpi b{font-size:18px;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
 <header class="top">
-  <h1>متابعة كومباوند بهجة</h1>
-  <div class="sub">شركة سيمفوني للتطوير العقاري</div>
+  <div>
+    <h1 id="title">متابعة كومباوند بهجة</h1>
+    <div class="sub" id="subtitle">شركة سيمفوني للتطوير العقاري</div>
+  </div>
+  <div class="sub" id="who"></div>
 </header>
 
-<main>
-  <!-- شاشة الدخول -->
-  <section id="login" class="card">
+<!-- تسجيل الدخول -->
+<main id="login" class="hidden">
+  <section class="card">
     <h2>تسجيل الدخول</h2>
-    <label>الإيميل
-      <input id="email" type="email" autocomplete="email" placeholder="name@example.com">
-    </label>
+    <label>الإيميل<input id="email" type="email" autocomplete="email" placeholder="name@example.com"></label>
     <button class="btn" id="sendLink">ابعت رابط الدخول</button>
     <div class="muted" style="margin-top:10px">هيوصلك إيميل فيه رابط دخول، اضغط عليه من نفس الجهاز.</div>
     <div id="loginMsg" class="muted"></div>
   </section>
+</main>
 
-  <!-- شاشة المشاريع -->
-  <section id="projects" class="card hidden">
-    <h2>المشاريع <span class="muted" id="who"></span></h2>
+<!-- قائمة المشاريع -->
+<main id="projects" class="hidden">
+  <section class="card">
+    <h2>المشاريع <button class="btn small ghost" id="signOut1">خروج</button></h2>
     <div id="projectList"><div class="muted">بيتحمّل...</div></div>
-    <button class="btn ghost" id="signOut">تسجيل الخروج</button>
   </section>
 </main>
+
+<!-- المشروع -->
+<div id="project" class="hidden">
+  <nav>
+    <button data-tab="concrete" class="on">الخرسانة</button>
+    <button data-tab="receipts">إيصالات الخرسانة</button>
+    <button data-tab="plants">المحطات</button>
+    <button id="backProjects">رجوع للمشاريع</button>
+  </nav>
+  <main>
+    <div class="kpis" id="kpis"></div>
+
+    <section id="tab-concrete">
+      <div class="card">
+        <h2>إضافة صبة هندسية <span>الصبات بتتحسب على الهندسي</span></h2>
+        <div class="form">
+          <label>الاسم<input id="g_name" placeholder="مثلاً: أعمدة البدروم Part 1"></label>
+          <label>النوع<select id="g_type"><option value="lean">عادية</option><option value="found">أساسات</option><option value="struct">هيكل</option></select></label>
+          <label>الدور<input id="g_floor" placeholder="بدروم / أرضي / أول"></label>
+          <label>الفاصل<input id="g_fasel" placeholder="Part 1"></label>
+          <label>الكمية الهندسية (م³)<input id="g_eng" type="number" step="0.01"></label>
+          <label>تاريخ الصب<input id="g_date" type="date"></label>
+        </div>
+        <button class="btn" id="saveGroup">حفظ الصبة</button>
+        <div id="groupMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>الصبات <span id="groupCount"></span></h2>
+        <div class="tw"><table id="groupTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-receipts" class="hidden">
+      <div class="card">
+        <h2>تسجيل إيصال خرسانة</h2>
+        <div class="form">
+          <label>التاريخ<input id="r_date" type="date"></label>
+          <label>الصبة<select id="r_group"></select></label>
+          <label>المحطة<select id="r_plant"></select></label>
+          <label>الكمية الفعلية (م³)<input id="r_m3" type="number" step="0.01"></label>
+          <label>رقم الإيصال<input id="r_ticket"></label>
+        </div>
+        <button class="btn" id="saveReceipt">حفظ الإيصال</button>
+        <div id="receiptMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>الإيصالات</h2>
+        <div class="tw"><table id="receiptTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-plants" class="hidden">
+      <div class="card">
+        <h2>إضافة محطة</h2>
+        <div class="form">
+          <label>اسم المحطة<input id="p_name" placeholder="مثلاً: لافارج"></label>
+        </div>
+        <button class="btn" id="savePlant">إضافة المحطة</button>
+        <div id="plantMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>إجمالي المكعبات من كل محطة</h2>
+        <div class="tw"><table id="plantTable"></table></div>
+      </div>
+    </section>
+  </main>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -62,25 +150,202 @@ const SUPABASE_KEY = 'sb_publishable_cMarVAfSYrQrRhSGGXffIQ_cdKzDfx_';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
+const fmt = n => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('en-US', {maximumFractionDigits: 2});
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TYPE_LABEL = {lean:'عادية', found:'أساسات', struct:'هيكل'};
 
-function showLogin(){ $('login').classList.remove('hidden'); $('projects').classList.add('hidden'); }
-function showProjects(){ $('login').classList.add('hidden'); $('projects').classList.remove('hidden'); }
+let CURRENT = null;   // المشروع المفتوح
+let GROUPS = [];      // الصبات
+let PLANTS = [];      // المحطات
+let RECEIPTS = [];    // الإيصالات
 
-async function loadProjects(user){
-  $('who').textContent = user.email || '';
-  const { data, error } = await sb.from('projects').select('id,name,compound').order('created_at');
-  const list = $('projectList');
-  if(error){ list.innerHTML = '<div class="err">' + error.message + '</div>'; return; }
-  if(!data || !data.length){ list.innerHTML = '<div class="muted">مفيش مشاريع ليك لسه. اتأكد إن حسابك متضاف كعضو في مشروع.</div>'; return; }
-  list.innerHTML = data.map(p =>
-    '<button class="proj" data-id="' + p.id + '"><b>' + p.name + '</b><span class="muted">' + p.compound + '</span></button>'
-  ).join('');
-  list.querySelectorAll('.proj').forEach(b => b.addEventListener('click', () => {
-    // الخطوة الجاية: فتح المشروع
-    alert('المشروع اتفتح: ' + b.querySelector('b').textContent + ' (هنا هنضيف الشاشات)');
-  }));
+function show(id){ ['login','projects','project'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
+
+function setHeader(title, sub){ $('title').textContent = title; $('subtitle').textContent = sub; }
+
+function addDays(dateStr, n){
+  const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
 }
 
+/* ---------- الدخول والمشاريع ---------- */
+async function loadProjects(user){
+  $('who').textContent = user.email || '';
+  setHeader('متابعة كومباوند بهجة', 'شركة سيمفوني للتطوير العقاري');
+  show('projects');
+  const { data, error } = await sb.from('projects').select('id,name,compound').order('created_at');
+  const list = $('projectList');
+  if(error){ list.innerHTML = '<div class="err">' + esc(error.message) + '</div>'; return; }
+  if(!data || !data.length){ list.innerHTML = '<div class="muted">مفيش مشاريع ليك لسه.</div>'; return; }
+  list.innerHTML = data.map(p =>
+    '<button class="proj" data-id="' + p.id + '" data-name="' + esc(p.name) + '" data-compound="' + esc(p.compound) + '"><b>' + esc(p.name) + '</b><span class="muted">' + esc(p.compound) + '</span></button>'
+  ).join('');
+  list.querySelectorAll('.proj').forEach(b => b.addEventListener('click', () => openProject({
+    id: b.dataset.id, name: b.dataset.name, compound: b.dataset.compound
+  })));
+}
+
+async function openProject(p){
+  CURRENT = p;
+  setHeader(p.name + ' · ' + p.compound, 'متابعة المشروع');
+  show('project');
+  await refreshAll();
+  switchTab('concrete');
+}
+
+function switchTab(tab){
+  ['concrete','receipts','plants'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  document.querySelectorAll('nav button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+}
+
+/* ---------- تحميل البيانات ---------- */
+async function refreshAll(){
+  const pid = CURRENT.id;
+  const [g, p, r] = await Promise.all([
+    sb.from('concrete_groups').select('*').eq('project_id', pid).order('created_at'),
+    sb.from('plants').select('*').eq('project_id', pid).order('name'),
+    sb.from('concrete_receipts').select('*').eq('project_id', pid).order('receipt_date', {ascending:false})
+  ]);
+  const err = g.error || p.error || r.error;
+  if(err){ alert('حصل خطأ في تحميل البيانات: ' + err.message); return; }
+  GROUPS = g.data || [];
+  PLANTS = p.data || [];
+  RECEIPTS = r.data || [];
+  // نجيب تواريخ الصب لكل صبة
+  const groupIds = GROUPS.map(x => x.id);
+  let pours = [];
+  if(groupIds.length){
+    const { data, error } = await sb.from('pours').select('*').in('group_id', groupIds).order('pour_date');
+    if(!error) pours = data || [];
+  }
+  GROUPS.forEach(x => { x.pours = pours.filter(q => q.group_id === x.id); });
+  renderAll();
+}
+
+function renderAll(){
+  renderKpis();
+  renderGroups();
+  renderReceiptForm();
+  renderReceipts();
+  renderPlants();
+}
+
+/* ---------- الأرقام العامة ---------- */
+function renderKpis(){
+  const eng = GROUPS.reduce((a,g) => a + Number(g.eng_qty || 0), 0);
+  const act = RECEIPTS.reduce((a,r) => a + Number(r.m3 || 0), 0);
+  const diff = act - eng;
+  $('kpis').innerHTML = `
+    <div class="kpi"><small>عدد الصبات</small><b>${GROUPS.length}</b></div>
+    <div class="kpi"><small>الهندسي (م³)</small><b>${fmt(eng)}</b></div>
+    <div class="kpi"><small>الفعلي من الإيصالات (م³)</small><b>${fmt(act)}</b></div>
+    <div class="kpi"><small>الفرق (م³)</small><b>${fmt(diff)}</b></div>`;
+}
+
+/* ---------- الصبات ---------- */
+function renderGroups(){
+  $('groupCount').textContent = GROUPS.length + ' صبة';
+  const rows = GROUPS.map(g => {
+    const dates = (g.pours || []).map(q => q.pour_date).join('، ') || '—';
+    const got = RECEIPTS.filter(r => r.group_id === g.id).reduce((a,r) => a + Number(r.m3 || 0), 0);
+    const diff = got - Number(g.eng_qty || 0);
+    const cls = !got ? 'mid' : (Math.abs(diff) <= g.eng_qty * 0.01 ? 'ok' : 'bad');
+    return `<tr>
+      <td>${esc(g.name)}</td><td>${TYPE_LABEL[g.type] || esc(g.type)}</td><td>${esc(g.floor)}</td><td>${esc(g.fasel)}</td>
+      <td>${fmt(g.eng_qty)}</td><td>${fmt(got)}</td><td>${fmt(diff)}</td>
+      <td><span class="pill ${cls}">${!got ? 'لا توجد إيصالات' : (cls === 'ok' ? 'مطابق' : 'فرق')}</span></td>
+      <td>${esc(dates)}</td>
+      <td><button class="btn small ghost" data-pour="${g.id}">+ صبة</button></td>
+    </tr>`;
+  }).join('');
+  $('groupTable').innerHTML = `<thead><tr><th>الصبة</th><th>النوع</th><th>الدور</th><th>الفاصل</th><th>الهندسي</th><th>الفعلي</th><th>الفرق</th><th>الحالة</th><th>تواريخ الصب</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="10" class="muted">مفيش صبات لسه</td></tr>'}</tbody>`;
+  $('groupTable').querySelectorAll('button[data-pour]').forEach(b => b.addEventListener('click', () => addPour(b.dataset.pour)));
+}
+
+async function saveGroup(){
+  const name = $('g_name').value.trim(), eng = parseFloat($('g_eng').value), date = $('g_date').value;
+  if(!name || isNaN(eng)){ $('groupMsg').textContent = 'اكتب الاسم والكمية الهندسية'; return; }
+  $('groupMsg').textContent = '';
+  const { data, error } = await sb.from('concrete_groups').insert({
+    project_id: CURRENT.id, name, type: $('g_type').value, floor: $('g_floor').value.trim() || '—',
+    fasel: $('g_fasel').value.trim() || '—', eng_qty: eng
+  }).select().single();
+  if(error){ $('groupMsg').textContent = error.message; return; }
+  if(date){
+    const { error: e2 } = await sb.from('pours').insert({
+      group_id: data.id, pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28)
+    });
+    if(e2){ $('groupMsg').textContent = 'الصبة اتسجلت بس تاريخ الصب ما اتسجلش: ' + e2.message; }
+  }
+  ['g_name','g_floor','g_fasel','g_eng','g_date'].forEach(i => $(i).value = '');
+  await refreshAll();
+}
+
+async function addPour(groupId){
+  const date = prompt('تاريخ الصب (YYYY-MM-DD)', new Date().toISOString().slice(0,10));
+  if(!date) return;
+  const { error } = await sb.from('pours').insert({
+    group_id: groupId, pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28)
+  });
+  if(error){ alert(error.message); return; }
+  await refreshAll();
+}
+
+/* ---------- المحطات ---------- */
+function renderReceiptForm(){
+  $('r_group').innerHTML = GROUPS.map(g => `<option value="${g.id}">${esc(g.name)} · ${esc(g.floor)} ${esc(g.fasel)}</option>`).join('') || '<option value="">اضف صبة الأول</option>';
+  $('r_plant').innerHTML = PLANTS.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') || '<option value="">اضف محطة الأول</option>';
+  if(!$('r_date').value) $('r_date').value = new Date().toISOString().slice(0,10);
+}
+
+function renderPlants(){
+  const tot = {};
+  RECEIPTS.forEach(r => { tot[r.plant_id] = (tot[r.plant_id] || 0) + Number(r.m3 || 0); });
+  const all = Object.values(tot).reduce((a,b) => a + b, 0);
+  const rows = PLANTS.map(p => `<tr><td>${esc(p.name)}</td><td>${fmt(tot[p.id] || 0)}</td><td>${all ? fmt((tot[p.id] || 0) / all * 100) + '%' : '—'}</td></tr>`).join('');
+  $('plantTable').innerHTML = `<thead><tr><th>المحطة</th><th>م³</th><th>النسبة</th></tr></thead><tbody>${rows || '<tr><td colspan="3" class="muted">مفيش محطات لسه</td></tr>'}<tr><td><b>الإجمالي</b></td><td><b>${fmt(all)}</b></td><td></td></tr></tbody>`;
+}
+
+async function savePlant(){
+  const name = $('p_name').value.trim();
+  if(!name){ $('plantMsg').textContent = 'اكتب اسم المحطة'; return; }
+  const { error } = await sb.from('plants').insert({ project_id: CURRENT.id, name });
+  if(error){ $('plantMsg').textContent = error.message; return; }
+  $('p_name').value = '';
+  $('plantMsg').textContent = '';
+  await refreshAll();
+}
+
+/* ---------- الإيصالات ---------- */
+function renderReceipts(){
+  const rows = RECEIPTS.map(r => {
+    const g = GROUPS.find(x => x.id === r.group_id);
+    const p = PLANTS.find(x => x.id === r.plant_id);
+    return `<tr><td>${esc(r.receipt_date)}</td><td>${g ? esc(g.name + ' · ' + g.floor + ' ' + g.fasel) : '—'}</td><td>${p ? esc(p.name) : '—'}</td><td>${fmt(r.m3)}</td><td>${esc(r.ticket || '')}</td><td><button class="btn small ghost" data-del="${r.id}">حذف</button></td></tr>`;
+  }).join('');
+  $('receiptTable').innerHTML = `<thead><tr><th>التاريخ</th><th>الصبة</th><th>المحطة</th><th>م³</th><th>الإيصال</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="muted">مفيش إيصالات لسه</td></tr>'}</tbody>`;
+  $('receiptTable').querySelectorAll('button[data-del]').forEach(b => b.addEventListener('click', () => deleteReceipt(b.dataset.del)));
+}
+
+async function saveReceipt(){
+  const date = $('r_date').value, m3 = parseFloat($('r_m3').value), group = $('r_group').value, plant = $('r_plant').value;
+  if(!date || isNaN(m3) || !group){ $('receiptMsg').textContent = 'اكتب التاريخ والكمية واختار الصبة'; return; }
+  const { error } = await sb.from('concrete_receipts').insert({
+    project_id: CURRENT.id, group_id: group, plant_id: plant || null, receipt_date: date, m3, ticket: $('r_ticket').value.trim() || null
+  });
+  if(error){ $('receiptMsg').textContent = error.message; return; }
+  $('r_m3').value = ''; $('r_ticket').value = ''; $('receiptMsg').textContent = '';
+  await refreshAll();
+}
+
+async function deleteReceipt(id){
+  if(!confirm('تحذف الإيصال ده؟')) return;
+  const { error } = await sb.from('concrete_receipts').delete().eq('id', id);
+  if(error){ alert(error.message); return; }
+  await refreshAll();
+}
+
+/* ---------- أحداث ---------- */
 $('sendLink').addEventListener('click', async () => {
   const email = $('email').value.trim();
   if(!email){ $('loginMsg').textContent = 'اكتب الإيميل الأول'; return; }
@@ -88,12 +353,19 @@ $('sendLink').addEventListener('click', async () => {
   const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href.split('#')[0] } });
   $('loginMsg').textContent = error ? error.message : 'اتبعت. افتح الإيميل واضغط الرابط.';
 });
-
-$('signOut').addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+$('signOut1').addEventListener('click', () => sb.auth.signOut());
+$('backProjects').addEventListener('click', async () => {
+  const { data } = await sb.auth.getSession();
+  if(data.session) loadProjects(data.session.user);
+});
+document.querySelectorAll('nav button[data-tab]').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+$('saveGroup').addEventListener('click', saveGroup);
+$('saveReceipt').addEventListener('click', saveReceipt);
+$('savePlant').addEventListener('click', savePlant);
 
 sb.auth.onAuthStateChange((event, session) => {
-  if(session && session.user){ showProjects(); loadProjects(session.user); }
-  else { showLogin(); }
+  if(session && session.user){ loadProjects(session.user); }
+  else { CURRENT = null; setHeader('متابعة كومباوند بهجة', 'شركة سيمفوني للتطوير العقاري'); $('who').textContent = ''; show('login'); }
 });
 </script>
 </body>
