@@ -616,10 +616,11 @@ function renderGroups(){
       + '<td>' + fmt(st.eng) + '</td><td>' + fmt(st.act) + '</td><td>' + fmt(st.got) + '</td><td>' + fmt(diff) + '</td>'
       + '<td><span class="pill ' + cls + '">' + (st.act == null ? 'لا يوجد فعلي' : (cls === 'ok' ? 'مطابق' : 'فرق')) + '</span></td>'
       + '<td>' + esc(dates) + '</td>'
-      + '<td><button class="btn small ghost adm-btn" data-egroup="' + g.id + '">تعديل</button> <button class="btn small ghost adm-btn" data-dgroup="' + g.id + '">حذف</button></td></tr>';
+      + '<td><button class="btn small ghost adm-btn" data-allp="' + g.id + '">' + (g.all_poured ? 'إلغاء "كل الصبات خلصت"' : 'كل الصبات خلصت ✓') + '</button> <button class="btn small ghost adm-btn" data-egroup="' + g.id + '">تعديل</button> <button class="btn small ghost adm-btn" data-dgroup="' + g.id + '">حذف</button></td></tr>';
   }).join('');
   $('groupTable').innerHTML = '<thead><tr><th>الصبة</th><th>المبنى</th><th>النوع</th><th>الدور</th><th>الفاصل</th><th>الهندسي</th><th>الفعلي (الشيت)</th><th>الإيصالات</th><th>الفرق</th><th>الحالة</th><th>تواريخ الصب</th><th></th></tr></thead>'
     + '<tbody>' + (rows || '<tr><td colspan="12" class="muted">مفيش صبات لسه</td></tr>') + '</tbody>';
+  $('groupTable').querySelectorAll('[data-allp]').forEach(b => b.addEventListener('click', () => toggleAllPoured(b.dataset.allp)));
   $('groupTable').querySelectorAll('[data-egroup]').forEach(b => b.addEventListener('click', () => editGroup(b.dataset.egroup)));
   $('groupTable').querySelectorAll('[data-dgroup]').forEach(b => b.addEventListener('click', () => deleteRow('concrete_groups', b.dataset.dgroup, refreshAll)));
 }
@@ -639,6 +640,13 @@ async function saveGroup(){
     if(e2){ $('groupMsg').textContent = 'الصبة اتسجلت بس تاريخ الصب ما اتسجلش: ' + e2.message; }
   }
   ['g_name','g_building','g_floor','g_fasel','g_eng','g_date'].forEach(i => $(i).value = '');
+  await refreshAll();
+}
+
+async function toggleAllPoured(id){
+  const g = GROUPS.find(x => x.id === id); if(!g) return;
+  const { error } = await sb.from('concrete_groups').update({ all_poured: !g.all_poured }).eq('id', id);
+  if(error){ alert(error.message); return; }
   await refreshAll();
 }
 
@@ -1110,20 +1118,12 @@ async function deleteRow(table, id, after){
 function planPct(t){
   return (today() >= t.end_date || actPct(t) >= 100) ? 100 : 0;
 }
-// الفعلي: النشاط المربوط بصبة بيبقى خلص (100%) لما كل صبات العنصر تتسجل (مجموع الهندسي للصبات = الهندسي الكلي للعنصر).
+// الفعلي: النشاط المربوط بعنصر بيبقى 100% لما العنصر يتعلّم "كل الصبات خلصت" من تبويب الصبات.
 // النشاط اليدوي بيتكتب بإيدك (0 أو 100)
 function actPct(t){
   if(t.group_id){
     const g = GROUPS.find(x => x.id === t.group_id);
-    if(g){
-      const ps = g.pours || [];
-      if(!ps.length) return 0;
-      // العنصر بيبقى 100% لما كل صبّاته تخلص: مجموع الهندسي للصبات وصل للهندسي الكلي للعنصر
-      const total = Number(g.eng_qty || 0);
-      if(!total) return 100;
-      const poured = ps.reduce((a,p) => a + Number(p.eng_qty || 0), 0);
-      return poured >= total - 0.01 ? 100 : 0;
-    }
+    if(g) return g.all_poured ? 100 : 0;
   }
   return Number(t.manual_pct || 0);
 }
