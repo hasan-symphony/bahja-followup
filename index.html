@@ -905,9 +905,7 @@ function lastCertDate(){
   const c = CERTS.slice().sort((a,b) => b.no - a.no)[0];
   return c ? c.cert_date : today();
 }
-function calcNextCert(){
-  const T = $('nc_date').value;
-  if(!T){ $('ncRes').textContent = 'اختار تاريخ المستخلص'; return; }
+function computeDue(T){
   const base = lastCertDate();
   const rows = [];
   GROUPS.forEach(g => (g.pours || []).forEach(p => {
@@ -933,6 +931,12 @@ function calcNextCert(){
   });
   const out = rows.map(r => ({ ...r, amount: r.qty * r.rate * r.pct })).filter(r => r.amount > 0);
   const total = out.reduce((a,r) => a + r.amount, 0);
+  return { base, out, total };
+}
+function calcNextCert(){
+  const T = $('nc_date').value;
+  if(!T){ $('ncRes').textContent = 'اختار تاريخ المستخلص'; return; }
+  const { base, out, total } = computeDue(T);
   if(!out.length){
     $('ncRes').innerHTML = `<div class="muted">مفيش حاجة استحقت بين ${esc(base)} و${esc(T)}</div>`;
     return;
@@ -948,14 +952,14 @@ function calcNextCert(){
 
 /* ---------- المستخلص المسودة ---------- */
 function draftCertificate(){
-  const boqPaid = BOQ.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * payPct(i), 0);
-  const already = CERTS.reduce((a,c) => a + Number(c.amount_current || 0), 0);
-  const amt = Math.round(boqPaid - already);
+  const T = $('x_date').value || today();
+  const { out, total } = computeDue(T);
+  const amt = Math.round(total);
   const next = CERTS.reduce((m,c) => Math.max(m, Number(c.no) || 0), 0) + 1;
-  $('x_no').value = next; $('x_date').value = today(); $('x_amt').value = amt; $('x_status').value = 'مسودة';
-  $('certMsg').textContent = amt > 0
-    ? 'مسودة: المنفذ × السعر في المقايسة (90% أو 100% للبنود المسلّمة) ناقص المستخلصات المسجلة. الحديد مش داخل الحساب لأن المقايسة مفيهاش سعر الطن. راجع قبل الحفظ.'
-    : 'مفيش فرق مستحق من المقايسة الحالية. راجع التنفيذ في تبويب المقايسة.';
+  $('x_no').value = next; $('x_date').value = T; $('x_amt').value = amt; $('x_status').value = 'مسودة';
+  $('certMsg').textContent = out.length
+    ? 'مسودة محسوبة بالقواعد لتاريخ المستخلص. راجع التفاصيل في خانة "حساب المستخلص الجاي" قبل الحفظ.'
+    : 'مفيش حاجة استحقت بين آخر مستخلص وتاريخ المستخلص ده.';
 }
 
 /* ---------- تقرير الإدارة ---------- */
