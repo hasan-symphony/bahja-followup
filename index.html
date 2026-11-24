@@ -86,6 +86,7 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
     <button data-tab="certs">المستخلصات</button>
     <button data-tab="boq">المقايسة</button>
     <button data-tab="docs">المستندات</button>
+    <button data-tab="team">الفريق</button>
     <button id="backProjects">رجوع للمشاريع</button>
   </nav>
   <main>
@@ -201,6 +202,22 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
       <div class="card">
         <h2>المستندات</h2>
         <div class="tw"><table id="docTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-team" class="hidden">
+      <div class="card">
+        <h2>إضافة عضو <span>الزميل لازم يكون سجل دخول الأول، واكتب الـUUID بتاعه</span></h2>
+        <div class="form">
+          <label>الـUUID<input id="m_uid" dir="ltr" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></label>
+          <label>الصلاحية<select id="m_role"><option value="viewer">مشاهد</option><option value="engineer">مهندس</option><option value="pm">مدير مشروع</option><option value="owner">مالك</option></select></label>
+        </div>
+        <button class="btn" id="addMember">إضافة</button>
+        <div id="teamMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>الأعضاء</h2>
+        <div class="tw"><table id="teamTable"></table></div>
       </div>
     </section>
 
@@ -324,8 +341,9 @@ async function openProject(p){
 }
 
 function switchTab(tab){
-  ['home','concrete','receipts','plants','steel','certs','boq','docs'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['home','concrete','receipts','plants','steel','certs','boq','docs','team'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('nav button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  if(tab === 'team') renderTeam();
 }
 
 /* ---------- تحميل البيانات ---------- */
@@ -737,6 +755,32 @@ $('saveBoq').addEventListener('click', saveBoqItem);
 $('importBoq').addEventListener('click', importBoq);
 $('saveDoc').addEventListener('click', saveDoc);
 $('q').addEventListener('input', () => runSearch($('q').value));
+$('addMember').addEventListener('click', addMember);
+
+/* ---------- الفريق ---------- */
+const ROLE_LABEL = {owner:'مالك', engineer:'مهندس', pm:'مدير مشروع', viewer:'مشاهد'};
+async function renderTeam(){
+  const { data, error } = await sb.from('project_members').select('user_id,role').eq('project_id', CURRENT.id);
+  if(error){ $('teamTable').innerHTML = '<tr><td class="err">' + esc(error.message) + '</td></tr>'; return; }
+  const rows = (data || []).map(m => `<tr><td dir="ltr">${esc(m.user_id)}</td><td>${esc(ROLE_LABEL[m.role] || m.role)}</td>
+      <td><button class="btn small ghost" data-rm="${m.user_id}">إزالة</button></td></tr>`).join('');
+  $('teamTable').innerHTML = `<thead><tr><th>المستخدم (UUID)</th><th>الصلاحية</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="3" class="muted">مفيش أعضاء</td></tr>'}</tbody>`;
+  $('teamTable').querySelectorAll('button[data-rm]').forEach(b => b.addEventListener('click', () => removeMember(b.dataset.rm)));
+}
+async function addMember(){
+  const uid = $('m_uid').value.trim(), role = $('m_role').value;
+  if(!uid){ $('teamMsg').textContent = 'اكتب الـUUID'; return; }
+  const { error } = await sb.from('project_members').insert({ project_id: CURRENT.id, user_id: uid, role });
+  if(error){ $('teamMsg').textContent = error.message; return; }
+  $('m_uid').value = ''; $('teamMsg').textContent = 'اتضاف العضو';
+  await renderTeam();
+}
+async function removeMember(uid){
+  if(!confirm('تشيل العضو ده؟')) return;
+  const { error } = await sb.from('project_members').delete().eq('project_id', CURRENT.id).eq('user_id', uid);
+  if(error) alert(error.message);
+  await renderTeam();
+}
 
 sb.auth.onAuthStateChange((event, session) => {
   if(session && session.user){ loadProjects(session.user); }
