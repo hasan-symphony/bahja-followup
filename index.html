@@ -1235,20 +1235,33 @@ function nextTest(g, t){
   (g.pours || []).forEach(p => [p.t7_date, p.t28_date].forEach(d => { if(d && d >= t && (!best || d < best)) best = d; }));
   return best;
 }
+// كميات الخرسانة في المقايسة (م³) لكل مبنى: عادية / أساسات مسلحة / هيكل مسلح (توريد ومصنعيات بنفس الكمية)
+const BOQ_CONC = { 'B2': { lean: 182, found: 1393, struct: 3850 } };
 function buildingRows(t){
   const map = {};
-  const ensure = n => map[n] || (map[n] = { name: n, groups: 0, eng: 0, got: 0, steelEng: 0, steelBilled: 0 });
-  GROUPS.forEach(g => { const b = ensure(bldOf(g)); const st = groupStats(g); b.groups++; b.eng += st.eng; b.got += st.got; });
+  const ensure = n => map[n] || (map[n] = { name: n, groups: 0, eng: 0, got: 0, poured: 0, engPoured: 0, steelEng: 0, steelBilled: 0 });
+  GROUPS.forEach(g => {
+    const b = ensure(bldOf(g)); const st = groupStats(g);
+    b.groups++; b.eng += st.eng; b.got += st.got;
+    if(st.act != null){ b.poured += st.act; b.engPoured += st.eng; }
+  });
   STEEL.forEach(x => {
     const g = GROUPS.find(q => q.id === x.group_id);
     const b = ensure(g ? bldOf(g) : 'غير مرتبط بصبة');
     b.steelEng += Number(x.eng_ton || 0);
     b.steelBilled += Number(x.eng_ton || 0) * steelPctAt(x, t);
   });
-  return Object.values(map).map(b => Object.assign(b, {
-    pct: b.eng ? b.got / b.eng * 100 : null,
-    steelPct: b.steelEng ? b.steelBilled / b.steelEng * 100 : null
-  }));
+  return Object.values(map).map(b => {
+    const q = BOQ_CONC[b.name];
+    const target = q ? q.lean + q.found + q.struct : null;
+    return Object.assign(b, {
+      target,
+      concPct: target ? b.poured / target * 100 : null,
+      wastePct: b.engPoured ? (b.poured - b.engPoured) / b.engPoured * 100 : null,
+      pct: b.eng ? b.got / b.eng * 100 : null,
+      steelPct: b.steelEng ? b.steelBilled / b.steelEng * 100 : null
+    });
+  });
 }
 function reportData(){
   const t = today();
@@ -1333,10 +1346,10 @@ function renderReports(){
     kpi('نسبة تنفيذ المقايسة', pctTxt(R.boqPct), fmt(R.boqEarned) + ' من ' + fmt(R.boqContract) + ' ج.م'),
     kpi('الجدول الزمني (فعلي)', pctTxt(R.actAll), 'مخطط ' + pctTxt(R.planAll))
   ].join('');
-  $('repBuild').innerHTML = '<thead><tr><th>المبنى</th><th>الصبات</th><th>الهندسي م³</th><th>المصبوب م³</th><th>نسبة الصب</th><th>حديد (طن)</th><th>الحديد المحسوب</th></tr></thead><tbody>'
-    + (R.blds.map(b => '<tr><td>' + esc(b.name) + '</td><td>' + b.groups + '</td><td>' + fmt(b.eng) + '</td><td>' + fmt(b.got) + '</td>'
-      + '<td style="min-width:150px">' + pctTxt(b.pct) + bar(b.pct) + '</td><td>' + fmt(b.steelEng) + '</td>'
-      + '<td style="min-width:150px">' + pctTxt(b.steelPct) + bar(b.steelPct) + '</td></tr>').join('') || '<tr><td colspan="7" class="muted">مفيش بيانات</td></tr>')
+  $('repBuild').innerHTML = '<thead><tr><th>المبنى</th><th>الصبات</th><th>الهندسي م³</th><th>المصبوب فعلي م³</th><th>المقايسة م³</th><th>نسبة إنجاز الخرسانة</th><th>الهالك</th><th>حديد (طن)</th><th>الحديد المحسوب</th></tr></thead><tbody>'
+    + (R.blds.map(b => '<tr><td>' + esc(b.name) + '</td><td>' + b.groups + '</td><td>' + fmt(b.engPoured) + '</td><td>' + fmt(b.poured) + '</td><td>' + fmt(b.target) + '</td>'
+      + '<td style="min-width:150px">' + pctTxt(b.concPct) + bar(b.concPct) + '</td><td>' + pctTxt(b.wastePct) + '</td><td>' + fmt(b.steelEng) + '</td>'
+      + '<td style="min-width:150px">' + pctTxt(b.steelPct) + bar(b.steelPct) + '</td></tr>').join('') || '<tr><td colspan="9" class="muted">مفيش بيانات</td></tr>')
     + '</tbody>';
   $('repUpcoming').innerHTML = '<thead><tr><th>التاريخ</th><th>الاختبار</th><th>الصبة</th><th>تاريخ الصب</th></tr></thead><tbody>'
     + (R.upcoming.map(u => '<tr><td>' + esc(u.d) + '</td><td>' + esc(u.k) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.pour) + '</td></tr>').join('')
@@ -1471,7 +1484,7 @@ function printReport(){
   const alerts = R.alerts.length
     ? R.alerts.map(a => '<div class="al ' + (a.lvl === 'warn' ? 'w' : '') + '">' + esc(a.txt) + '</div>').join('')
     : '<div class="muted">مفيش تنبيهات</div>';
-  const blds = R.blds.map(b => '<tr><td>' + esc(b.name) + '</td><td>' + b.groups + '</td><td>' + fmt(b.eng) + '</td><td>' + fmt(b.got) + '</td><td>' + pctTxt(b.pct) + pb(b.pct) + '</td><td>' + fmt(b.steelEng) + '</td><td>' + pctTxt(b.steelPct) + pb(b.steelPct) + '</td></tr>').join('');
+  const blds = R.blds.map(b => '<tr><td>' + esc(b.name) + '</td><td>' + b.groups + '</td><td>' + fmt(b.engPoured) + '</td><td>' + fmt(b.poured) + '</td><td>' + fmt(b.target) + '</td><td>' + pctTxt(b.concPct) + pb(b.concPct) + '</td><td>' + pctTxt(b.wastePct) + '</td><td>' + fmt(b.steelEng) + '</td><td>' + pctTxt(b.steelPct) + pb(b.steelPct) + '</td></tr>').join('');
   const groups = R.groups.map(({ g, st, bill, next }) => '<tr><td>' + esc(g.name) + '</td><td>' + esc(bldOf(g)) + '</td><td>' + esc(g.floor) + ' ' + esc(g.fasel) + '</td><td>' + fmt(st.eng) + '</td><td>' + fmt(st.got) + '</td><td>' + pctTxt(st.pct) + pb(st.pct) + '</td><td>' + pctTxt(bill) + '</td><td>' + esc(next || '—') + '</td></tr>').join('');
   const tasks = R.tasks.map(x => { const v = x.act - x.plan; return '<tr><td>' + esc(x.name) + '</td><td>' + esc(x.start_date) + ' → ' + esc(x.end_date) + '</td><td>' + pctTxt(x.plan) + pb(x.plan) + '</td><td>' + pctTxt(x.act) + pb(x.act, x.plan) + '</td><td>' + pill(v < -5 ? 'متأخر' : (v > 5 ? 'متقدم' : 'على الخطة'), v < -5 ? 'bad' : (v > 5 ? 'ok' : 'mid')) + '</td></tr>'; }).join('');
   const certs = CERTS.slice().sort((a,b) => a.no - b.no).map(c => '<tr><td>' + c.no + '</td><td>' + esc(c.cert_date) + '</td><td>' + fmt(c.amount_current) + '</td><td>' + esc(c.status) + '</td></tr>').join('');
@@ -1501,7 +1514,7 @@ function printReport(){
     + tile('الجدول الزمني', pctTxt(R.actAll), 'مخطط ' + pctTxt(R.planAll), R.actAll < R.planAll - 5 ? 'bad' : 'ok')
     + '</div>'
     + '<h2>التنبيهات</h2>' + alerts
-    + '<h2>الخرسانة حسب المبنى</h2><table><thead><tr><th>المبنى</th><th>الصبات</th><th>الهندسي م³</th><th>المصبوب م³</th><th>نسبة الصب</th><th>حديد (طن)</th><th>الحديد المحسوب</th></tr></thead><tbody>' + (blds || '<tr><td colspan="7">مفيش بيانات</td></tr>') + '</tbody></table>'
+    + '<h2>الخرسانة حسب المبنى</h2><table><thead><tr><th>المبنى</th><th>الصبات</th><th>الهندسي م³</th><th>المصبوب فعلي م³</th><th>المقايسة م³</th><th>نسبة الإنجاز</th><th>الهالك</th><th>حديد (طن)</th><th>الحديد المحسوب</th></tr></thead><tbody>' + (blds || '<tr><td colspan="9">مفيش بيانات</td></tr>') + '</tbody></table>'
     + '<h2>تفاصيل الصبات</h2><table><thead><tr><th>الصبة</th><th>المبنى</th><th>الدور والفاصل</th><th>الهندسي</th><th>المصبوب</th><th>نسبة الصب</th><th>نسبة الصرف</th><th>أقرب اختبار</th></tr></thead><tbody>' + (groups || '<tr><td colspan="8">مفيش صبات</td></tr>') + '</tbody></table>'
     + '<h2>الاختبارات القادمة (14 يوم)</h2><table><thead><tr><th>التاريخ</th><th>الاختبار</th><th>الصبة</th></tr></thead><tbody>' + (upc || '<tr><td colspan="3">مفيش</td></tr>') + '</tbody></table>'
     + '<h2>الحديد</h2><div class="tiles">'
