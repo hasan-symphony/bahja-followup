@@ -270,6 +270,14 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
         <h2>المستخلصات</h2>
         <div class="tw"><table id="certTable"></table></div>
       </div>
+      <div class="card">
+        <h2>حساب المستخلص الجاي <span>اكتب تاريخ المستخلص، والنظام يحسب كل اللي استحق من آخر مستخلص لحد التاريخ ده</span></h2>
+        <div class="form">
+          <label>تاريخ المستخلص<input id="nc_date" type="date"></label>
+        </div>
+        <button class="btn" id="calcNext">احسب</button>
+        <div id="ncRes" style="margin-top:12px"></div>
+      </div>
     </section>
 
     <section id="tab-steel" class="hidden">
@@ -561,12 +569,14 @@ function runSearch(q){
 }
 
 /* ---------- المقايسة ---------- */
+// نسبة الصرف: الخرسانة 100%، والباقي 90% لحد التسليم النهائي ثم 100%
+function payPct(i){ return (i.chapter === 'concrete' || i.accepted) ? 1 : 0.9; }
 function renderBoq(){
   const sums = BOQ_CH.map(([k,l]) => {
     const its = BOQ.filter(i => i.chapter === k);
     const contract = its.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
     const earned = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price), 0);
-    const paid = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * (i.accepted ? 1 : 0.9), 0);
+    const paid = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * payPct(i), 0);
     return { l, n: its.length, contract, earned, paid };
   });
   $('boqSum').innerHTML = `<thead><tr><th>الباب</th><th>البنود</th><th>العقد</th><th>المنفذ</th><th>المصروف</th><th>المحجوز</th></tr></thead><tbody>${
@@ -847,6 +857,7 @@ $('q').addEventListener('input', () => runSearch($('q').value));
 $('addMember').addEventListener('click', addMember);
 $('printReport').addEventListener('click', printReport);
 $('draftCert').addEventListener('click', draftCertificate);
+$('calcNext').addEventListener('click', calcNextCert);
 $('im_read').addEventListener('click', async () => { if(await readImportSource()) renderImportMap(); });
 $('im_save').addEventListener('click', saveImport);
 $('im_target').addEventListener('change', () => { if(IM.data.length) renderImportMap(); });
@@ -876,9 +887,68 @@ async function removeMember(uid){
   await renderTeam();
 }
 
+/* ---------- حساب المستخلص الجاي ---------- */
+const RATE = { supply: 3652, labourFound: 800, labourStruct: 2500, lean: 2986, steel: 41562 };
+// نسبة الصرف في تاريخ معين: 80% بعد 7 أيام، 100% بعد 28 يوم
+function pctAt(t7, t28, d){
+  if(t28 && d >= t28) return 1;
+  if(t7 && d >= t7) return 0.8;
+  return 0;
+}
+// الحديد: 80% وقت التسليم للاستشاري، و100% بعد 28 يوم من صب العنصر
+function steelPctAt(s, d){
+  if(s.t28_date && d >= s.t28_date) return 1;
+  if(s.handover_date && d >= s.handover_date) return 0.8;
+  return 0;
+}
+function lastCertDate(){
+  const c = CERTS.slice().sort((a,b) => b.no - a.no)[0];
+  return c ? c.cert_date : today();
+}
+function calcNextCert(){
+  const T = $('nc_date').value;
+  if(!T){ $('ncRes').textContent = 'اختار تاريخ المستخلص'; return; }
+  const base = lastCertDate();
+  const rows = [];
+  GROUPS.forEach(g => (g.pours || []).forEach(p => {
+    const d = pctAt(p.t7_date, p.t28_date, T) - pctAt(p.t7_date, p.t28_date, base);
+    if(d <= 0) return;
+    const reason = (p.t28_date && T >= p.t28_date && base < p.t28_date)
+      ? 'وصل ميعاد 28 يوم (' + p.t28_date + ')' : 'وصل ميعاد 7 أيام (' + p.t7_date + ')';
+    const desc = `${g.name} ${g.floor} ${g.fasel} · صب ${p.pour_date}`;
+    const act = Number(p.act_qty || 0), eng = Number(p.eng_qty || 0);
+    if(g.type === 'lean'){
+      rows.push({ desc, kind: 'مصنعية', qty: eng, rate: RATE.lean, pct: d, reason });
+    } else {
+      rows.push({ desc, kind: 'توريد (فعلي)', qty: act, rate: RATE.supply, pct: d, reason });
+      rows.push({ desc, kind: 'مصنعية (هندسي)', qty: eng, rate: g.type === 'found' ? RATE.labourFound : RATE.labourStruct, pct: d, reason });
+    }
+  }));
+  STEEL.forEach(s => {
+    const d = steelPctAt(s, T) - steelPctAt(s, base);
+    if(d <= 0) return;
+    const reason = (s.t28_date && T >= s.t28_date && base < s.t28_date)
+      ? 'وصل ميعاد 28 يوم للعنصر (' + s.t28_date + ')' : 'تسليم للاستشاري (' + s.handover_date + ')';
+    rows.push({ desc: 'حديد: ' + s.name, kind: 'حديد', qty: Number(s.eng_ton), rate: RATE.steel, pct: d, reason });
+  });
+  const out = rows.map(r => ({ ...r, amount: r.qty * r.rate * r.pct })).filter(r => r.amount > 0);
+  const total = out.reduce((a,r) => a + r.amount, 0);
+  if(!out.length){
+    $('ncRes').innerHTML = `<div class="muted">مفيش حاجة استحقت بين ${esc(base)} و${esc(T)}</div>`;
+    return;
+  }
+  $('ncRes').innerHTML = `
+    <div class="kpi" style="margin-bottom:10px"><small>المستحق من آخر مستخلص (${esc(base)}) لحد ${esc(T)} (ج.م)</small><b>${fmt(total)}</b></div>
+    <div class="tw"><table>
+      <thead><tr><th>البند</th><th>النوع</th><th>الكمية</th><th>النسبة المضافة</th><th>المبلغ</th><th>السبب</th></tr></thead>
+      <tbody>${out.map(r => `<tr><td>${esc(r.desc)}</td><td>${esc(r.kind)}</td><td>${fmt(r.qty)}</td>
+        <td>${Math.round(r.pct * 100)}%</td><td>${fmt(r.amount)}</td><td>${esc(r.reason)}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
 /* ---------- المستخلص المسودة ---------- */
 function draftCertificate(){
-  const boqPaid = BOQ.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * (i.accepted ? 1 : 0.9), 0);
+  const boqPaid = BOQ.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * payPct(i), 0);
   const already = CERTS.reduce((a,c) => a + Number(c.amount_current || 0), 0);
   const amt = Math.round(boqPaid - already);
   const next = CERTS.reduce((m,c) => Math.max(m, Number(c.no) || 0), 0) + 1;
