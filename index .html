@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>متابعة كومباوند بهجة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#14213d;--navy2:#1f3a68;--bg:#eef2f7;--card:#fff;--ink:#172033;--mut:#64748b;--line:#e2e8f0;--red:#b91c1c;--green:#16a34a;--amber:#f59e0b}
+*{box-sizing:border-box}
+body{margin:0;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;
+  background-image:linear-gradient(rgba(20,33,61,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(20,33,61,.035) 1px,transparent 1px);background-size:22px 22px}
+.top{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.top h1{margin:0;font-size:18px;font-weight:700}
+.top .sub{color:#b9c7dd;font-size:12px}
+nav{display:flex;gap:6px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);padding:8px;position:sticky;top:0;z-index:5}
+nav button{flex:0 0 auto;border:1px solid var(--line);background:#fff;padding:8px 14px;border-radius:99px;font:inherit;cursor:pointer;white-space:nowrap}
+nav button.on{background:var(--navy2);color:#fff;border-color:var(--navy2)}
+main{max-width:900px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--navy2);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card h2 span{font-size:12px;color:var(--mut);font-weight:400}
+.form{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:640px){.form{grid-template-columns:repeat(3,1fr)}}
+label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--mut)}
+input,select{padding:9px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;color:var(--ink);width:100%;background:#fff}
+.check{flex-direction:row;align-items:center;gap:8px}
+.check input{width:auto}
+.btn{background:var(--navy2);color:#fff;border:0;padding:11px 16px;border-radius:10px;cursor:pointer;font:inherit;margin-top:6px}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:6px 10px;font-size:12px;margin:0}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:#eef3fb;color:var(--navy);font-weight:700;border-bottom:2px solid #c7d4ea}
+tbody tr:nth-child(even) td{background:#fbfcfe}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;color:#fff;font-weight:600}
+.ok{background:var(--green)}.bad{background:var(--red)}.mid{background:var(--amber)}.gray{background:#94a3b8}
+.muted{color:var(--mut);font-size:12.5px}
+.err{color:var(--red);font-size:13px;margin-top:8px}
+.hidden{display:none!important}
+.proj{display:block;width:100%;text-align:right;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:8px;font:inherit;cursor:pointer}
+.proj b{display:block;font-size:15px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+@media(min-width:640px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi small{color:var(--mut);display:block;font-size:12px}
+.kpi b{font-size:18px;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1 id="title">متابعة كومباوند بهجة</h1>
+    <div class="sub" id="subtitle">شركة سيمفوني للتطوير العقاري</div>
+  </div>
+  <div class="sub" id="who"></div>
+</header>
+
+<main id="login" class="hidden">
+  <section class="card">
+    <h2>تسجيل الدخول</h2>
+    <label>الإيميل<input id="email" type="email" autocomplete="email" placeholder="name@example.com"></label>
+    <button class="btn" id="sendLink">ابعت رابط الدخول</button>
+    <div class="muted" style="margin-top:10px">هيوصلك إيميل فيه رابط دخول، اضغط عليه من نفس الجهاز.</div>
+    <div id="loginMsg" class="muted"></div>
+  </section>
+</main>
+
+<main id="projects" class="hidden">
+  <section class="card">
+    <h2>المشاريع <button class="btn small ghost" id="signOut1">خروج</button></h2>
+    <div id="projectList"><div class="muted">بيتحمّل...</div></div>
+  </section>
+</main>
+
+<div id="project" class="hidden">
+  <nav>
+    <button data-tab="home" class="on">الرئيسية</button>
+    <button data-tab="concrete">الخرسانة</button>
+    <button data-tab="receipts">إيصالات الخرسانة</button>
+    <button data-tab="plants">المحطات</button>
+    <button data-tab="steel">الحديد</button>
+    <button data-tab="certs">المستخلصات</button>
+    <button data-tab="boq">المقايسة</button>
+    <button data-tab="docs">المستندات</button>
+    <button data-tab="team">الفريق</button>
+    <button data-tab="import">استيراد</button>
+    <button id="backProjects">رجوع للمشاريع</button>
+  </nav>
+  <main>
+    <div class="kpis" id="kpis"></div>
+
+    <section id="tab-home">
+      <div class="kpis" id="homeKpis"></div>
+      <div class="card">
+        <h2>تقرير الإدارة <span>ملخص قابل للطباعة أو الحفظ PDF</span></h2>
+        <button class="btn" id="printReport">افتح التقرير</button>
+      </div>
+      <div class="card">
+        <h2>بحث <span>في الصبات والحديد والمستخلصات والمقايسة</span></h2>
+        <input id="q" placeholder="اكتب اسم صبة أو بند أو رقم مستخلص">
+        <div id="qRes" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <section id="tab-concrete">
+      <div class="card">
+        <h2>إضافة صبة هندسية <span>الصبات بتتحسب على الهندسي</span></h2>
+        <div class="form">
+          <label>الاسم<input id="g_name" placeholder="مثلاً: أعمدة البدروم Part 1"></label>
+          <label>النوع<select id="g_type"><option value="lean">عادية</option><option value="found">أساسات</option><option value="struct">هيكل</option></select></label>
+          <label>الدور<input id="g_floor" placeholder="بدروم / أرضي / أول"></label>
+          <label>الفاصل<input id="g_fasel" placeholder="Part 1"></label>
+          <label>الكمية الهندسية (م³)<input id="g_eng" type="number" step="0.01"></label>
+          <label>تاريخ الصب<input id="g_date" type="date"></label>
+        </div>
+        <button class="btn" id="saveGroup">حفظ الصبة</button>
+        <div id="groupMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>الصبات <span id="groupCount"></span></h2>
+        <div class="tw"><table id="groupTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-receipts" class="hidden">
+      <div class="card">
+        <h2>تسجيل إيصال خرسانة</h2>
+        <div class="form">
+          <label>التاريخ<input id="r_date" type="date"></label>
+          <label>الصبة<select id="r_group"></select></label>
+          <label>المحطة<select id="r_plant"></select></label>
+          <label>الكمية الفعلية (م³)<input id="r_m3" type="number" step="0.01"></label>
+          <label>رقم الإيصال<input id="r_ticket"></label>
+        </div>
+        <button class="btn" id="saveReceipt">حفظ الإيصال</button>
+        <div id="receiptMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>الإيصالات</h2>
+        <div class="tw"><table id="receiptTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-plants" class="hidden">
+      <div class="card">
+        <h2>إضافة محطة</h2>
+        <div class="form">
+          <label>اسم المحطة<input id="p_name" placeholder="مثلاً: لافارج"></label>
+        </div>
+        <button class="btn" id="savePlant">إضافة المحطة</button>
+        <div id="plantMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>إجمالي المكعبات من كل محطة</h2>
+        <div class="tw"><table id="plantTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-boq" class="hidden">
+      <div class="card">
+        <h2>ملخص المقايسة حسب الأبواب <span>الصرف 90% لحد التسليم النهائي، و100% بعده</span></h2>
+        <div class="tw"><table id="boqSum"></table></div>
+      </div>
+      <div class="card">
+        <h2>إضافة بند</h2>
+        <div class="form">
+          <label>الباب<select id="b_ch"></select></label>
+          <label>الكود<input id="b_code"></label>
+          <label>الوصف<input id="b_name"></label>
+          <label>الوحدة<input id="b_unit"></label>
+          <label>الكمية<input id="b_qty" type="number" step="0.001"></label>
+          <label>السعر<input id="b_price" type="number" step="0.01"></label>
+          <label>المنفذ حتى الآن<input id="b_exec" type="number" step="0.001"></label>
+        </div>
+        <button class="btn" id="saveBoq">حفظ البند</button>
+        <div id="boqMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>استيراد مقايسة <span>انسخ من الإكسل بالترتيب: كود، وصف، وحدة، كمية، سعر</span></h2>
+        <label>الباب<select id="bp_ch"></select></label>
+        <textarea id="bp_text" rows="6" style="width:100%;font:inherit;border:1px solid #cbd5e1;border-radius:10px;padding:8px;margin-top:8px"></textarea>
+        <button class="btn" id="importBoq">استيراد البنود</button>
+        <div id="bpMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>البنود</h2>
+        <div class="tw"><table id="boqTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-docs" class="hidden">
+      <div class="card">
+        <h2>تسجيل مستند <span>الملف نفسه محتاج تخزين، دلوقتي بنسجل بياناته</span></h2>
+        <div class="form">
+          <label>النوع<select id="o_type"></select></label>
+          <label>الوصف<input id="o_title"></label>
+          <label>التاريخ<input id="o_date" type="date"></label>
+          <label>الرقم<input id="o_ref"></label>
+          <label>الملف (PDF أو صورة أو Excel)<input id="o_file" type="file"></label>
+        </div>
+        <button class="btn" id="saveDoc">حفظ المستند</button>
+        <div id="docMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>المستندات</h2>
+        <div class="tw"><table id="docTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-team" class="hidden">
+      <div class="card">
+        <h2>إضافة عضو <span>الزميل لازم يكون سجل دخول الأول، واكتب الـUUID بتاعه</span></h2>
+        <div class="form">
+          <label>الـUUID<input id="m_uid" dir="ltr" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></label>
+          <label>الصلاحية<select id="m_role"><option value="viewer">مشاهد</option><option value="engineer">مهندس</option><option value="pm">مدير مشروع</option><option value="owner">مالك</option></select></label>
+        </div>
+        <button class="btn" id="addMember">إضافة</button>
+        <div id="teamMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>الأعضاء</h2>
+        <div class="tw"><table id="teamTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-import" class="hidden">
+      <div class="card">
+        <h2>استيراد من ملف <span>Excel أو CSV، أو الصق الجدول من الملف (لو PDF: انسخ الجدول منه والصقه تحت)</span></h2>
+        <div class="form">
+          <label>نوع البيانات<select id="im_target">
+            <option value="steel">توريدات حديد</option>
+            <option value="receipts">إيصالات خرسانة</option>
+            <option value="boq">بنود مقايسة</option>
+            <option value="certs">مستخلصات (سجل)</option>
+            <option value="review">مراجعة مستخلص المقاول (مقارنة، بدون حفظ)</option>
+          </select></label>
+          <label>الملف<input id="im_file" type="file" accept=".xlsx,.xls,.csv"></label>
+        </div>
+        <label style="margin-top:10px">أو الصق هنا (الأعمدة مفصولة بـ Tab)
+          <textarea id="im_text" rows="4" style="width:100%;font:inherit;border:1px solid #cbd5e1;border-radius:10px;padding:8px"></textarea></label>
+        <button class="btn ghost" id="im_read">قراءة</button>
+        <div id="im_map" class="form" style="margin-top:12px"></div>
+        <div id="im_info" class="muted" style="margin-top:8px"></div>
+        <div id="im_preview" class="tw" style="margin-top:10px"></div>
+        <button class="btn hidden" id="im_save">حفظ الصفوف في النظام</button>
+        <div id="im_msg" class="err"></div>
+      </div>
+    </section>
+
+    <section id="tab-certs" class="hidden">
+      <div class="card">
+        <h2>إضافة مستخلص <span>التراكمي بيتحسب تلقائياً من الجاري</span></h2>
+        <div class="form">
+          <label>رقم المستخلص<input id="x_no" type="number"></label>
+          <label>التاريخ<input id="x_date" type="date"></label>
+          <label>الجاري (ج.م)<input id="x_amt" type="number" step="0.01"></label>
+          <label>الحالة<select id="x_status"><option>ممضي</option><option>تحت المراجعة</option><option>مسودة</option></select></label>
+        </div>
+        <button class="btn" id="saveCert">حفظ المستخلص</button>
+        <button class="btn ghost" id="draftCert">جهزلي المستخلص</button>
+        <div id="certMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>المستخلصات</h2>
+        <div class="tw"><table id="certTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-steel" class="hidden">
+      <div class="card">
+        <h2>المخزون والهالك <span>المنفذ = بنود الحديد اللي اتسلمت للاستشاري</span></h2>
+        <div class="kpis" id="steelKpis" style="margin-bottom:0"></div>
+      </div>
+      <div class="card">
+        <h2>تسجيل توريد حديد</h2>
+        <div class="form">
+          <label>التاريخ<input id="d_date" type="date"></label>
+          <label>الكمية (طن)<input id="d_tons" type="number" step="0.001"></label>
+          <label>القطر (مم)<input id="d_dia" type="number"></label>
+          <label>النوع<input id="d_grade" placeholder="B500D / عز"></label>
+          <label>المورد<input id="d_supplier"></label>
+          <label>رقم الفاتورة / الإذن<input id="d_invoice"></label>
+          <label class="check"><input id="d_open" type="checkbox"> رصيد افتتاحي</label>
+        </div>
+        <button class="btn" id="saveDelivery">حفظ التوريد</button>
+        <div id="deliveryMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>سجل التوريدات</h2>
+        <div class="tw"><table id="deliveryTable"></table></div>
+      </div>
+      <div class="card">
+        <h2>تسجيل جرد الموقع</h2>
+        <div class="form">
+          <label>تاريخ الجرد<input id="c_date" type="date"></label>
+          <label>الكمية الموجودة (طن)<input id="c_tons" type="number" step="0.001"></label>
+        </div>
+        <button class="btn" id="saveCount">حفظ الجرد</button>
+        <div id="countMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>الجرد</h2>
+        <div class="tw"><table id="countTable"></table></div>
+      </div>
+      <div class="card">
+        <h2>بنود الحديد <span>تسليم الاستشاري وتكسير 28 يوم</span></h2>
+        <div class="form">
+          <label>البند<input id="s_name"></label>
+          <label>هندسي (طن)<input id="s_eng" type="number" step="0.01"></label>
+          <label>تاريخ التسليم للاستشاري<input id="s_hand" type="date"></label>
+          <label>تاريخ تكسير 28 يوم<input id="s_t28" type="date"></label>
+        </div>
+        <button class="btn" id="saveSteel">حفظ البند</button>
+        <div id="steelMsg" class="err"></div>
+        <div class="tw" style="margin-top:12px"><table id="steelTable"></table></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://rhyhsatogeswudouehwn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_cMarVAfSYrQrRhSGGXffIQ_cdKzDfx_';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const fmt = n => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('en-US', {maximumFractionDigits: 2});
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TYPE_LABEL = {lean:'عادية', found:'أساسات', struct:'هيكل'};
+const today = () => new Date().toISOString().slice(0,10);
+
+let CURRENT = null;
+let GROUPS = [], PLANTS = [], RECEIPTS = [];
+let STEEL = [], DELIVERIES = [], COUNTS = [];
+let CERTS = [];
+let BOQ = [], DOCS = [];
+const BOQ_CH = [['concrete','خرسانة'],['steel','حديد'],['electric','كهربا'],['masonry','مباني'],['plaster','محارة'],['paint','دهانات'],['marble','رخام'],['other','أخرى']];
+const DOC_TYPES = ['مذكرة خصم','مذكرة إضافة','مقايسة مختومة','جواب مبعوث','برنامج زمني','أخرى'];
+
+function show(id){ ['login','projects','project'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
+function setHeader(title, sub){ $('title').textContent = title; $('subtitle').textContent = sub; }
+function addDays(dateStr, n){ const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); }
+
+/* ---------- الدخول والمشاريع ---------- */
+async function loadProjects(user){
+  $('who').textContent = user.email || '';
+  setHeader('متابعة كومباوند بهجة', 'شركة سيمفوني للتطوير العقاري');
+  show('projects');
+  const { data, error } = await sb.from('projects').select('id,name,compound').order('created_at');
+  const list = $('projectList');
+  if(error){ list.innerHTML = '<div class="err">' + esc(error.message) + '</div>'; return; }
+  if(!data || !data.length){ list.innerHTML = '<div class="muted">مفيش مشاريع ليك لسه.</div>'; return; }
+  list.innerHTML = data.map(p =>
+    '<button class="proj" data-id="' + p.id + '" data-name="' + esc(p.name) + '" data-compound="' + esc(p.compound) + '"><b>' + esc(p.name) + '</b><span class="muted">' + esc(p.compound) + '</span></button>'
+  ).join('');
+  list.querySelectorAll('.proj').forEach(b => b.addEventListener('click', () => openProject({
+    id: b.dataset.id, name: b.dataset.name, compound: b.dataset.compound
+  })));
+}
+
+async function openProject(p){
+  CURRENT = p;
+  setHeader(p.name + ' · ' + p.compound, 'متابعة المشروع');
+  show('project');
+  await refreshAll();
+  switchTab('home');
+}
+
+function switchTab(tab){
+  ['home','concrete','receipts','plants','steel','certs','boq','docs','team','import'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  document.querySelectorAll('nav button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  if(tab === 'team') renderTeam();
+}
+
+/* ---------- تحميل البيانات ---------- */
+async function refreshAll(){
+  const pid = CURRENT.id;
+  const [g, p, r, s, d, c] = await Promise.all([
+    sb.from('concrete_groups').select('*').eq('project_id', pid).order('created_at'),
+    sb.from('plants').select('*').eq('project_id', pid).order('name'),
+    sb.from('concrete_receipts').select('*').eq('project_id', pid).order('receipt_date', {ascending:false}),
+    sb.from('steel_items').select('*').eq('project_id', pid).order('name'),
+    sb.from('steel_deliveries').select('*').eq('project_id', pid).order('delivery_date', {ascending:false}),
+    sb.from('steel_counts').select('*').eq('project_id', pid).order('count_date', {ascending:false})
+  ]);
+  const err = g.error || p.error || r.error || s.error || d.error || c.error;
+  if(err){ alert('حصل خطأ في تحميل البيانات: ' + err.message); return; }
+  GROUPS = g.data || []; PLANTS = p.data || []; RECEIPTS = r.data || [];
+  STEEL = s.data || []; DELIVERIES = d.data || []; COUNTS = c.data || [];
+
+  const certRes = await sb.from('certificates').select('*').eq('project_id', pid).order('no');
+  CERTS = certRes.data || [];
+  const boqRes = await sb.from('boq_items').select('*').eq('project_id', pid).order('created_at');
+  BOQ = boqRes.data || [];
+  const docRes = await sb.from('documents').select('*').eq('project_id', pid).order('doc_date', {ascending:false});
+  DOCS = docRes.data || [];
+
+  const groupIds = GROUPS.map(x => x.id);
+  let pours = [];
+  if(groupIds.length){
+    const { data, error } = await sb.from('pours').select('*').in('group_id', groupIds).order('pour_date');
+    if(!error) pours = data || [];
+  }
+  GROUPS.forEach(x => { x.pours = pours.filter(q => q.group_id === x.id); });
+  renderAll();
+}
+
+function renderAll(){
+  renderKpis();
+  renderGroups();
+  renderReceiptForm();
+  renderReceipts();
+  renderPlants();
+  renderSteel();
+  renderCerts();
+  renderBoq();
+  renderDocs();
+  renderHome();
+}
+
+/* ---------- الأرقام العامة ---------- */
+function renderKpis(){
+  const eng = GROUPS.reduce((a,g) => a + Number(g.eng_qty || 0), 0);
+  const act = RECEIPTS.reduce((a,r) => a + Number(r.m3 || 0), 0);
+  const diff = act - eng;
+  $('kpis').innerHTML = `
+    <div class="kpi"><small>عدد الصبات</small><b>${GROUPS.length}</b></div>
+    <div class="kpi"><small>الهندسي (م³)</small><b>${fmt(eng)}</b></div>
+    <div class="kpi"><small>الفعلي من الإيصالات (م³)</small><b>${fmt(act)}</b></div>
+    <div class="kpi"><small>الفرق (م³)</small><b>${fmt(diff)}</b></div>`;
+}
+
+/* ---------- الصبات ---------- */
+function renderGroups(){
+  $('groupCount').textContent = GROUPS.length + ' صبة';
+  const rows = GROUPS.map(g => {
+    const dates = (g.pours || []).map(q => q.pour_date).join('، ') || '—';
+    const got = RECEIPTS.filter(r => r.group_id === g.id).reduce((a,r) => a + Number(r.m3 || 0), 0);
+    const diff = got - Number(g.eng_qty || 0);
+    const cls = !got ? 'mid' : (Math.abs(diff) <= g.eng_qty * 0.01 ? 'ok' : 'bad');
+    return `<tr>
+      <td>${esc(g.name)}</td><td>${TYPE_LABEL[g.type] || esc(g.type)}</td><td>${esc(g.floor)}</td><td>${esc(g.fasel)}</td>
+      <td>${fmt(g.eng_qty)}</td><td>${fmt(got)}</td><td>${fmt(diff)}</td>
+      <td><span class="pill ${cls}">${!got ? 'لا توجد إيصالات' : (cls === 'ok' ? 'مطابق' : 'فرق')}</span></td>
+      <td>${esc(dates)}</td>
+      <td><button class="btn small ghost" data-pour="${g.id}">+ صبة</button></td>
+    </tr>`;
+  }).join('');
+  $('groupTable').innerHTML = `<thead><tr><th>الصبة</th><th>النوع</th><th>الدور</th><th>الفاصل</th><th>الهندسي</th><th>الفعلي</th><th>الفرق</th><th>الحالة</th><th>تواريخ الصب</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="10" class="muted">مفيش صبات لسه</td></tr>'}</tbody>`;
+  $('groupTable').querySelectorAll('button[data-pour]').forEach(b => b.addEventListener('click', () => addPour(b.dataset.pour)));
+}
+
+async function saveGroup(){
+  const name = $('g_name').value.trim(), eng = parseFloat($('g_eng').value), date = $('g_date').value;
+  if(!name || isNaN(eng)){ $('groupMsg').textContent = 'اكتب الاسم والكمية الهندسية'; return; }
+  $('groupMsg').textContent = '';
+  const { data, error } = await sb.from('concrete_groups').insert({
+    project_id: CURRENT.id, name, type: $('g_type').value, floor: $('g_floor').value.trim() || '—',
+    fasel: $('g_fasel').value.trim() || '—', eng_qty: eng
+  }).select().single();
+  if(error){ $('groupMsg').textContent = error.message; return; }
+  if(date){
+    const { error: e2 } = await sb.from('pours').insert({ group_id: data.id, pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28) });
+    if(e2){ $('groupMsg').textContent = 'الصبة اتسجلت بس تاريخ الصب ما اتسجلش: ' + e2.message; }
+  }
+  ['g_name','g_floor','g_fasel','g_eng','g_date'].forEach(i => $(i).value = '');
+  await refreshAll();
+}
+
+async function addPour(groupId){
+  const date = prompt('تاريخ الصب (YYYY-MM-DD)', today());
+  if(!date) return;
+  const { error } = await sb.from('pours').insert({ group_id: groupId, pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28) });
+  if(error){ alert(error.message); return; }
+  await refreshAll();
+}
+
+/* ---------- المحطات والإيصالات ---------- */
+function renderReceiptForm(){
+  $('r_group').innerHTML = GROUPS.map(g => `<option value="${g.id}">${esc(g.name)} · ${esc(g.floor)} ${esc(g.fasel)}</option>`).join('') || '<option value="">ضيف صبة الأول</option>';
+  $('r_plant').innerHTML = PLANTS.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') || '<option value="">ضيف محطة الأول</option>';
+  if(!$('r_date').value) $('r_date').value = today();
+  if(!$('d_date').value) $('d_date').value = today();
+  if(!$('c_date').value) $('c_date').value = today();
+}
+
+function renderPlants(){
+  const tot = {};
+  RECEIPTS.forEach(r => { tot[r.plant_id] = (tot[r.plant_id] || 0) + Number(r.m3 || 0); });
+  const all = Object.values(tot).reduce((a,b) => a + b, 0);
+  const rows = PLANTS.map(p => `<tr><td>${esc(p.name)}</td><td>${fmt(tot[p.id] || 0)}</td><td>${all ? fmt((tot[p.id] || 0) / all * 100) + '%' : '—'}</td></tr>`).join('');
+  $('plantTable').innerHTML = `<thead><tr><th>المحطة</th><th>م³</th><th>النسبة</th></tr></thead><tbody>${rows || '<tr><td colspan="3" class="muted">مفيش محطات لسه</td></tr>'}<tr><td><b>الإجمالي</b></td><td><b>${fmt(all)}</b></td><td></td></tr></tbody>`;
+}
+
+function renderReceipts(){
+  const rows = RECEIPTS.map(r => {
+    const g = GROUPS.find(x => x.id === r.group_id);
+    const p = PLANTS.find(x => x.id === r.plant_id);
+    return `<tr><td>${esc(r.receipt_date)}</td><td>${g ? esc(g.name + ' · ' + g.floor + ' ' + g.fasel) : '—'}</td><td>${p ? esc(p.name) : '—'}</td><td>${fmt(r.m3)}</td><td>${esc(r.ticket || '')}</td><td><button class="btn small ghost" data-del="${r.id}">حذف</button></td></tr>`;
+  }).join('');
+  $('receiptTable').innerHTML = `<thead><tr><th>التاريخ</th><th>الصبة</th><th>المحطة</th><th>م³</th><th>الإيصال</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="muted">مفيش إيصالات لسه</td></tr>'}</tbody>`;
+  $('receiptTable').querySelectorAll('button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow('concrete_receipts', b.dataset.del, refreshAll)));
+}
+
+async function savePlant(){
+  const name = $('p_name').value.trim();
+  if(!name){ $('plantMsg').textContent = 'اكتب اسم المحطة'; return; }
+  const { error } = await sb.from('plants').insert({ project_id: CURRENT.id, name });
+  if(error){ $('plantMsg').textContent = error.message; return; }
+  $('p_name').value = ''; $('plantMsg').textContent = '';
+  await refreshAll();
+}
+
+async function saveReceipt(){
+  const date = $('r_date').value, m3 = parseFloat($('r_m3').value), group = $('r_group').value, plant = $('r_plant').value;
+  if(!date || isNaN(m3) || !group){ $('receiptMsg').textContent = 'اكتب التاريخ والكمية واختار الصبة'; return; }
+  const { error } = await sb.from('concrete_receipts').insert({
+    project_id: CURRENT.id, group_id: group, plant_id: plant || null, receipt_date: date, m3, ticket: $('r_ticket').value.trim() || null
+  });
+  if(error){ $('receiptMsg').textContent = error.message; return; }
+  $('r_m3').value = ''; $('r_ticket').value = ''; $('receiptMsg').textContent = '';
+  await refreshAll();
+}
+
+/* ---------- الرئيسية والبحث ---------- */
+function renderHome(){
+  const certsPaid = CERTS.filter(c => c.status === 'ممضي').reduce((a,c) => a + Number(c.amount_current || 0), 0);
+  const lastCert = CERTS.slice().sort((a,b) => b.no - a.no)[0];
+  const boqContract = BOQ.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
+  const boqEarned = BOQ.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price), 0);
+  const progress = boqContract ? boqEarned / boqContract * 100 : null;
+  const steelBilled = stockNumbers().billed;
+  $('homeKpis').innerHTML = `
+    <div class="kpi"><small>المدفوع حتى الآن (ج.م)</small><b>${fmt(certsPaid)}</b></div>
+    <div class="kpi"><small>آخر مستخلص</small><b>${lastCert ? 'رقم ' + lastCert.no : '—'}</b><div class="muted">${lastCert ? esc(lastCert.cert_date) : ''}</div></div>
+    <div class="kpi"><small>نسبة التنفيذ (بالقيمة)</small><b>${progress == null ? '—' : fmt(progress) + '%'}</b></div>
+    <div class="kpi"><small>الحديد المحسوب للصرف (طن)</small><b>${fmt(steelBilled)}</b></div>`;
+}
+
+function runSearch(q){
+  q = q.trim().toLowerCase();
+  if(!q){ $('qRes').innerHTML = ''; return; }
+  const hits = [];
+  GROUPS.forEach(g => { const t = `${g.name} ${g.floor} ${g.fasel}`; if(t.toLowerCase().includes(q)) hits.push(`صبة: ${esc(t)} · هندسي ${fmt(g.eng_qty)}`); });
+  STEEL.forEach(s => { if(s.name.toLowerCase().includes(q)) hits.push(`حديد: ${esc(s.name)} · ${fmt(s.eng_ton)} طن`); });
+  const qNum = q.replace(/[^0-9]/g, '');
+  CERTS.forEach(c => { if(q.includes('مستخلص') || (qNum && String(c.no) === qNum) || String(c.cert_date).includes(q)) hits.push(`مستخلص ${c.no} · ${esc(c.cert_date)} · ${fmt(c.amount_current)}`); });
+  BOQ.forEach(i => { if(i.name.toLowerCase().includes(q) || (i.code || '').toLowerCase().includes(q)) hits.push(`بند مقايسة: ${esc(i.name)} · ${fmt(i.qty)} ${esc(i.unit || '')}`); });
+  $('qRes').innerHTML = hits.length
+    ? hits.slice(0,30).map(h => `<div class="muted" style="padding:6px 0;border-bottom:1px solid var(--line)">${h}</div>`).join('')
+    : '<div class="muted">مفيش نتايج</div>';
+}
+
+/* ---------- المقايسة ---------- */
+function renderBoq(){
+  const sums = BOQ_CH.map(([k,l]) => {
+    const its = BOQ.filter(i => i.chapter === k);
+    const contract = its.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
+    const earned = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price), 0);
+    const paid = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * (i.accepted ? 1 : 0.9), 0);
+    return { l, n: its.length, contract, earned, paid };
+  });
+  $('boqSum').innerHTML = `<thead><tr><th>الباب</th><th>البنود</th><th>العقد</th><th>المنفذ</th><th>المصروف</th><th>المحجوز</th></tr></thead><tbody>${
+    sums.map(r => `<tr><td>${r.l}</td><td>${r.n}</td><td>${fmt(r.contract)}</td><td>${fmt(r.earned)}</td><td>${fmt(r.paid)}</td><td>${fmt(r.earned - r.paid)}</td></tr>`).join('')
+  }</tbody>`;
+
+  const chOpts = BOQ_CH.map(([k,l]) => `<option value="${k}">${l}</option>`).join('');
+  $('b_ch').innerHTML = chOpts;
+  $('bp_ch').innerHTML = chOpts;
+
+  const rows = BOQ.map(i => `<tr>
+      <td>${esc(i.code || '')}</td><td>${esc((BOQ_CH.find(c => c[0] === i.chapter) || [0,''])[1])}</td><td>${esc(i.name)}</td><td>${esc(i.unit || '')}</td>
+      <td>${fmt(i.qty)}</td><td>${fmt(i.price)}</td>
+      <td><input type="number" step="0.001" value="${i.executed_qty}" style="width:100px" data-exec="${i.id}"></td>
+      <td>${i.accepted ? '<span class="pill ok">تسليم نهائي</span>' : `<button class="btn small ghost" data-acc="${i.id}">تسليم نهائي</button>`}</td>
+      <td><button class="btn small ghost" data-del="${i.id}" data-t="boq_items">حذف</button></td></tr>`).join('');
+  $('boqTable').innerHTML = `<thead><tr><th>الكود</th><th>الباب</th><th>الوصف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th><th>المنفذ</th><th></th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">مفيش بنود لسه</td></tr>'}</tbody>`;
+  $('boqTable').querySelectorAll('input[data-exec]').forEach(inp => inp.addEventListener('change', () => updateExec(inp.dataset.exec, inp.value)));
+  $('boqTable').querySelectorAll('button[data-acc]').forEach(b => b.addEventListener('click', () => acceptItem(b.dataset.acc)));
+  $('boqTable').querySelectorAll('button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow('boq_items', b.dataset.del, refreshAll)));
+}
+
+async function updateExec(id, v){
+  const { error } = await sb.from('boq_items').update({ executed_qty: parseFloat(v) || 0 }).eq('id', id);
+  if(error) alert(error.message);
+  await refreshAll();
+}
+
+async function acceptItem(id){
+  if(!confirm('تسليم نهائي للبند ده؟ هيتصرف 100% بدل 90%.')) return;
+  const { error } = await sb.from('boq_items').update({ accepted: true }).eq('id', id);
+  if(error) alert(error.message);
+  await refreshAll();
+}
+
+async function saveBoqItem(){
+  const name = $('b_name').value.trim(), qty = parseFloat($('b_qty').value), price = parseFloat($('b_price').value);
+  if(!name || isNaN(qty) || isNaN(price)){ $('boqMsg').textContent = 'اكتب الوصف والكمية والسعر'; return; }
+  const { error } = await sb.from('boq_items').insert({
+    project_id: CURRENT.id, chapter: $('b_ch').value, code: $('b_code').value.trim() || null, name,
+    unit: $('b_unit').value.trim() || null, qty, price, executed_qty: parseFloat($('b_exec').value) || 0
+  });
+  if(error){ $('boqMsg').textContent = error.message; return; }
+  ['b_code','b_name','b_unit','b_qty','b_price','b_exec'].forEach(i => $(i).value = '');
+  $('boqMsg').textContent = '';
+  await refreshAll();
+}
+
+async function importBoq(){
+  const ch = $('bp_ch').value;
+  const lines = $('bp_text').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rows = []; let bad = 0;
+  lines.forEach(l => {
+    const p = l.includes('\t') ? l.split('\t') : l.split(',');
+    const [code, name, unit, qty, price] = p.map(x => (x || '').trim());
+    const q = parseFloat(String(qty).replace(/,/g,'')), pr = parseFloat(String(price).replace(/,/g,''));
+    if(!name || isNaN(q) || isNaN(pr)){ bad++; return; }
+    rows.push({ project_id: CURRENT.id, chapter: ch, code: code || null, name, unit: unit || null, qty: q, price: pr, executed_qty: 0 });
+  });
+  if(!rows.length){ $('bpMsg').textContent = 'مفيش سطور صالحة'; return; }
+  const { error } = await sb.from('boq_items').insert(rows);
+  if(error){ $('bpMsg').textContent = error.message; return; }
+  $('bp_text').value = '';
+  $('bpMsg').textContent = 'اتضاف ' + rows.length + ' بند' + (bad ? '، واتخطى ' + bad + ' سطر ناقص' : '');
+  await refreshAll();
+}
+
+/* ---------- المستندات ---------- */
+function renderDocs(){
+  $('o_type').innerHTML = DOC_TYPES.map(t => `<option>${t}</option>`).join('');
+  const rows = DOCS.map(d => `<tr><td>${esc(d.doc_type)}</td><td>${esc(d.title)}</td><td>${esc(d.doc_date || '—')}</td><td>${esc(d.ref || '')}</td>
+      <td>${d.file_path ? `<button class="btn small ghost" data-open="${d.id}">فتح</button>` : ''}</td>
+      <td><button class="btn small ghost" data-del="${d.id}">حذف</button></td></tr>`).join('');
+  $('docTable').innerHTML = `<thead><tr><th>النوع</th><th>الوصف</th><th>التاريخ</th><th>الرقم</th><th>الملف</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="muted">مفيش مستندات</td></tr>'}</tbody>`;
+  document.querySelectorAll('#docTable button[data-open]').forEach(b => {
+    const d = DOCS.find(x => x.id === b.dataset.open);
+    b.addEventListener('click', () => openDocFile(d.file_path));
+  });
+  document.querySelectorAll('#docTable button[data-del]').forEach(b => {
+    const d = DOCS.find(x => x.id === b.dataset.del);
+    b.addEventListener('click', () => deleteDoc(d.id, d.file_path));
+  });
+}
+
+async function saveDoc(){
+  const title = $('o_title').value.trim(), date = $('o_date').value, file = $('o_file').files[0];
+  if(!title){ $('docMsg').textContent = 'اكتب الوصف'; return; }
+  let file_path = null;
+  if(file){
+    const ext = ((file.name.split('.').pop() || 'bin').replace(/[^a-zA-Z0-9]/g, '') || 'bin').toLowerCase();
+    file_path = `${CURRENT.id}/${Date.now()}.${ext}`;
+    $('docMsg').textContent = 'بيترفع الملف...';
+    const { error: upErr } = await sb.storage.from('documents').upload(file_path, file, { contentType: file.type || undefined });
+    if(upErr){ $('docMsg').textContent = 'الرفع فشل: ' + upErr.message; return; }
+  }
+  const { error } = await sb.from('documents').insert({
+    project_id: CURRENT.id, doc_type: $('o_type').value, title, doc_date: date || null, ref: $('o_ref').value.trim() || null, file_path
+  });
+  if(error){
+    $('docMsg').textContent = error.message;
+    if(file_path) await sb.storage.from('documents').remove([file_path]);
+    return;
+  }
+  ['o_title','o_date','o_ref'].forEach(i => $(i).value = '');
+  $('o_file').value = '';
+  $('docMsg').textContent = '';
+  await refreshAll();
+}
+
+async function openDocFile(path){
+  const { data, error } = await sb.storage.from('documents').createSignedUrl(path, 600);
+  if(error){ alert(error.message); return; }
+  const w = window.open(data.signedUrl, '_blank');
+  if(!w) alert('المتصفح منع فتح الملف، اسمح بالنوافذ المنبثقة');
+}
+
+async function deleteDoc(id, path){
+  if(!confirm('تحذف المستند ده؟')) return;
+  if(path) await sb.storage.from('documents').remove([path]);
+  const { error } = await sb.from('documents').delete().eq('id', id);
+  if(error) alert(error.message);
+  await refreshAll();
+}
+
+/* ---------- المستخلصات ---------- */
+function renderCerts(){
+  let cum = 0;
+  const rows = CERTS.slice().sort((a,b) => a.no - b.no).map(c => {
+    cum += Number(c.amount_current || 0);
+    const cls = c.status === 'ممضي' ? 'ok' : (c.status === 'مسودة' ? 'gray' : 'mid');
+    return `<tr><td>${c.no}</td><td>${esc(c.cert_date)}</td><td>${fmt(c.amount_current)}</td><td>${fmt(cum)}</td>
+      <td><span class="pill ${cls}">${esc(c.status)}</span></td>
+      <td><button class="btn small ghost" data-del="${c.id}" data-t="certificates">حذف</button></td></tr>`;
+  }).join('');
+  $('certTable').innerHTML = `<thead><tr><th>رقم</th><th>التاريخ</th><th>الجاري</th><th>التراكمي</th><th>الحالة</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="muted">مفيش مستخلصات</td></tr>'}</tbody>`;
+  document.querySelectorAll('#tab-certs button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow(b.dataset.t, b.dataset.del, refreshAll)));
+}
+
+async function saveCert(){
+  const no = parseInt($('x_no').value), date = $('x_date').value, amt = parseFloat($('x_amt').value);
+  if(!no || !date || isNaN(amt)){ $('certMsg').textContent = 'اكتب الرقم والتاريخ والمبلغ'; return; }
+  const { error } = await sb.from('certificates').insert({
+    project_id: CURRENT.id, no, cert_date: date, amount_current: amt, status: $('x_status').value
+  });
+  if(error){ $('certMsg').textContent = error.message; return; }
+  ['x_no','x_date','x_amt'].forEach(i => $(i).value = '');
+  $('certMsg').textContent = '';
+  await refreshAll();
+}
+
+/* ---------- الحديد ---------- */
+function stockNumbers(){
+  const supplied = DELIVERIES.reduce((a,d) => a + Number(d.tons || 0), 0);
+  const executed = STEEL.filter(s => s.handover_date).reduce((a,s) => a + Number(s.eng_ton || 0), 0);
+  const expected = supplied - executed;
+  const last = COUNTS[0] || null;                  // أحدث جرد
+  const counted = last ? Number(last.tons) : null;
+  const waste = (counted == null || !supplied) ? null : (expected - counted) / supplied * 100;
+  const t = today();
+  const billed = STEEL.reduce((a,s) => a + Number(s.eng_ton || 0) * ((s.t28_date && s.t28_date <= t) ? 1 : (s.handover_date ? 0.8 : 0)), 0);
+  return { supplied, executed, billed, expected, counted, countDate: last ? last.count_date : null, waste };
+}
+
+function renderSteel(){
+  const s = stockNumbers();
+  const wasteTxt = s.waste == null ? '—' : fmt(s.waste) + '%';
+  const wasteCls = s.waste == null ? 'gray' : (s.waste > 2 ? 'bad' : 'ok');
+  $('steelKpis').innerHTML = `
+    <div class="kpi"><small>الموّرد (طن)</small><b>${fmt(s.supplied)}</b></div>
+    <div class="kpi"><small>المسلّم للاستشاري - هندسي (طن)</small><b>${fmt(s.executed)}</b></div>
+    <div class="kpi"><small>المحسوب للصرف 80% / 100% (طن)</small><b>${fmt(s.billed)}</b></div>
+    <div class="kpi"><small>المتوقع في الموقع (طن)</small><b>${fmt(s.expected)}</b></div>
+    <div class="kpi"><small>نسبة الهالك <span class="pill ${wasteCls}">${s.waste != null && s.waste > 2 ? 'أكبر من 2%' : 'الحد 2%'}</span></small><b>${wasteTxt}</b>${s.countDate ? '<div class="muted">جرد ' + esc(s.countDate) + '</div>' : ''}</div>`;
+
+  const dRows = DELIVERIES.map(d => `<tr>
+      <td>${esc(d.delivery_date || '—')}</td><td>${fmt(d.tons)}</td><td>${esc(d.diameter || '')}</td><td>${esc(d.grade || '')}</td>
+      <td>${esc(d.supplier || '')}</td><td>${esc(d.invoice || '')}</td><td>${d.is_opening ? '<span class="pill gray">افتتاحي</span>' : ''}</td>
+      <td><button class="btn small ghost" data-del="${d.id}" data-t="steel_deliveries">حذف</button></td></tr>`).join('');
+  $('deliveryTable').innerHTML = `<thead><tr><th>التاريخ</th><th>طن</th><th>القطر</th><th>النوع</th><th>المورد</th><th>الفاتورة</th><th></th><th></th></tr></thead><tbody>${dRows || '<tr><td colspan="8" class="muted">مفيش توريدات لسه</td></tr>'}</tbody>`;
+
+  const cRows = COUNTS.map(c => `<tr><td>${esc(c.count_date)}</td><td>${fmt(c.tons)}</td>
+      <td><button class="btn small ghost" data-del="${c.id}" data-t="steel_counts">حذف</button></td></tr>`).join('');
+  $('countTable').innerHTML = `<thead><tr><th>تاريخ الجرد</th><th>الموجود (طن)</th><th></th></tr></thead><tbody>${cRows || '<tr><td colspan="3" class="muted">مفيش جرد لسه</td></tr>'}</tbody>`;
+
+  const sRows = STEEL.map(x => `<tr><td>${esc(x.name)}</td><td>${fmt(x.eng_ton)}</td><td>${esc(x.handover_date || '—')}</td><td>${esc(x.t28_date || '—')}</td>
+      <td><button class="btn small ghost" data-del="${x.id}" data-t="steel_items">حذف</button></td></tr>`).join('');
+  $('steelTable').innerHTML = `<thead><tr><th>البند</th><th>هندسي (طن)</th><th>تسليم الاستشاري</th><th>تكسير 28</th><th></th></tr></thead><tbody>${sRows || '<tr><td colspan="5" class="muted">مفيش بنود</td></tr>'}</tbody>`;
+
+  document.querySelectorAll('#tab-steel button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow(b.dataset.t, b.dataset.del, refreshAll)));
+}
+
+async function saveDelivery(){
+  const date = $('d_date').value, tons = parseFloat($('d_tons').value);
+  if(!date || isNaN(tons)){ $('deliveryMsg').textContent = 'اكتب التاريخ والكمية'; return; }
+  const { error } = await sb.from('steel_deliveries').insert({
+    project_id: CURRENT.id, delivery_date: date, tons,
+    diameter: parseInt($('d_dia').value) || null, grade: $('d_grade').value.trim() || null,
+    supplier: $('d_supplier').value.trim() || null, invoice: $('d_invoice').value.trim() || null,
+    is_opening: $('d_open').checked
+  });
+  if(error){ $('deliveryMsg').textContent = error.message; return; }
+  ['d_tons','d_dia','d_grade','d_supplier','d_invoice'].forEach(i => $(i).value = '');
+  $('d_open').checked = false; $('deliveryMsg').textContent = '';
+  await refreshAll();
+}
+
+async function saveCount(){
+  const date = $('c_date').value, tons = parseFloat($('c_tons').value);
+  if(!date || isNaN(tons)){ $('countMsg').textContent = 'اكتب تاريخ الجرد والكمية'; return; }
+  const { error } = await sb.from('steel_counts').insert({ project_id: CURRENT.id, count_date: date, tons });
+  if(error){ $('countMsg').textContent = error.message; return; }
+  $('c_tons').value = ''; $('countMsg').textContent = '';
+  await refreshAll();
+}
+
+async function saveSteel(){
+  const name = $('s_name').value.trim(), eng = parseFloat($('s_eng').value);
+  if(!name || isNaN(eng)){ $('steelMsg').textContent = 'اكتب اسم البند والكمية'; return; }
+  const { error } = await sb.from('steel_items').insert({
+    project_id: CURRENT.id, name, eng_ton: eng, handover_date: $('s_hand').value || null, t28_date: $('s_t28').value || null
+  });
+  if(error){ $('steelMsg').textContent = error.message; return; }
+  ['s_name','s_eng','s_hand','s_t28'].forEach(i => $(i).value = '');
+  $('steelMsg').textContent = '';
+  await refreshAll();
+}
+
+async function deleteRow(table, id, after){
+  if(!confirm('تحذف السطر ده؟')) return;
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if(error){ alert(error.message); return; }
+  await after();
+}
+
+/* ---------- أحداث ---------- */
+$('sendLink').addEventListener('click', async () => {
+  const email = $('email').value.trim();
+  if(!email){ $('loginMsg').textContent = 'اكتب الإيميل الأول'; return; }
+  $('loginMsg').textContent = 'بيتبعت...';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href.split('#')[0] } });
+  $('loginMsg').textContent = error ? error.message : 'اتبعت. افتح الإيميل واضغط الرابط.';
+});
+$('signOut1').addEventListener('click', () => sb.auth.signOut());
+$('backProjects').addEventListener('click', async () => {
+  const { data } = await sb.auth.getSession();
+  if(data.session) loadProjects(data.session.user);
+});
+document.querySelectorAll('nav button[data-tab]').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+$('saveGroup').addEventListener('click', saveGroup);
+$('saveReceipt').addEventListener('click', saveReceipt);
+$('savePlant').addEventListener('click', savePlant);
+$('saveDelivery').addEventListener('click', saveDelivery);
+$('saveCount').addEventListener('click', saveCount);
+$('saveSteel').addEventListener('click', saveSteel);
+$('saveCert').addEventListener('click', saveCert);
+$('saveBoq').addEventListener('click', saveBoqItem);
+$('importBoq').addEventListener('click', importBoq);
+$('saveDoc').addEventListener('click', saveDoc);
+$('q').addEventListener('input', () => runSearch($('q').value));
+$('addMember').addEventListener('click', addMember);
+$('printReport').addEventListener('click', printReport);
+$('draftCert').addEventListener('click', draftCertificate);
+$('im_read').addEventListener('click', async () => { if(await readImportSource()) renderImportMap(); });
+$('im_save').addEventListener('click', saveImport);
+$('im_target').addEventListener('change', () => { if(IM.data.length) renderImportMap(); });
+
+/* ---------- الفريق ---------- */
+const ROLE_LABEL = {owner:'مالك', engineer:'مهندس', pm:'مدير مشروع', viewer:'مشاهد'};
+async function renderTeam(){
+  const { data, error } = await sb.from('project_members').select('user_id,role').eq('project_id', CURRENT.id);
+  if(error){ $('teamTable').innerHTML = '<tr><td class="err">' + esc(error.message) + '</td></tr>'; return; }
+  const rows = (data || []).map(m => `<tr><td dir="ltr">${esc(m.user_id)}</td><td>${esc(ROLE_LABEL[m.role] || m.role)}</td>
+      <td><button class="btn small ghost" data-rm="${m.user_id}">إزالة</button></td></tr>`).join('');
+  $('teamTable').innerHTML = `<thead><tr><th>المستخدم (UUID)</th><th>الصلاحية</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="3" class="muted">مفيش أعضاء</td></tr>'}</tbody>`;
+  $('teamTable').querySelectorAll('button[data-rm]').forEach(b => b.addEventListener('click', () => removeMember(b.dataset.rm)));
+}
+async function addMember(){
+  const uid = $('m_uid').value.trim(), role = $('m_role').value;
+  if(!uid){ $('teamMsg').textContent = 'اكتب الـUUID'; return; }
+  const { error } = await sb.from('project_members').insert({ project_id: CURRENT.id, user_id: uid, role });
+  if(error){ $('teamMsg').textContent = error.message; return; }
+  $('m_uid').value = ''; $('teamMsg').textContent = 'اتضاف العضو';
+  await renderTeam();
+}
+async function removeMember(uid){
+  if(!confirm('تشيل العضو ده؟')) return;
+  const { error } = await sb.from('project_members').delete().eq('project_id', CURRENT.id).eq('user_id', uid);
+  if(error) alert(error.message);
+  await renderTeam();
+}
+
+/* ---------- المستخلص المسودة ---------- */
+function draftCertificate(){
+  const boqPaid = BOQ.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * (i.accepted ? 1 : 0.9), 0);
+  const already = CERTS.reduce((a,c) => a + Number(c.amount_current || 0), 0);
+  const amt = Math.round(boqPaid - already);
+  const next = CERTS.reduce((m,c) => Math.max(m, Number(c.no) || 0), 0) + 1;
+  $('x_no').value = next; $('x_date').value = today(); $('x_amt').value = amt; $('x_status').value = 'مسودة';
+  $('certMsg').textContent = amt > 0
+    ? 'مسودة: المنفذ × السعر في المقايسة (90% أو 100% للبنود المسلّمة) ناقص المستخلصات المسجلة. الحديد مش داخل الحساب لأن المقايسة مفيهاش سعر الطن. راجع قبل الحفظ.'
+    : 'مفيش فرق مستحق من المقايسة الحالية. راجع التنفيذ في تبويب المقايسة.';
+}
+
+/* ---------- تقرير الإدارة ---------- */
+function printReport(){
+  const w = window.open('', '_blank');
+  if(!w){ alert('المتصفح منع النافذة، اسمح بالنوافذ المنبثقة'); return; }
+  const s = stockNumbers();
+  const eng = GROUPS.reduce((a,g) => a + Number(g.eng_qty || 0), 0);
+  const act = RECEIPTS.reduce((a,r) => a + Number(r.m3 || 0), 0);
+  const certPaid = CERTS.filter(c => c.status === 'ممضي').reduce((a,c) => a + Number(c.amount_current || 0), 0);
+  const boqContract = BOQ.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
+  const boqEarned = BOQ.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price), 0);
+  const groupRows = GROUPS.map(g => {
+    const got = RECEIPTS.filter(r => r.group_id === g.id).reduce((a,r) => a + Number(r.m3 || 0), 0);
+    return `<tr><td>${esc(g.name)}</td><td>${esc(g.floor)}</td><td>${esc(g.fasel)}</td><td>${fmt(g.eng_qty)}</td><td>${fmt(got)}</td><td>${fmt(got - Number(g.eng_qty || 0))}</td></tr>`;
+  }).join('');
+  const certRows = CERTS.slice().sort((a,b) => a.no - b.no).map(c =>
+    `<tr><td>${c.no}</td><td>${esc(c.cert_date)}</td><td>${fmt(c.amount_current)}</td><td>${esc(c.status)}</td></tr>`).join('');
+  const chRows = BOQ_CH.map(([k,l]) => {
+    const its = BOQ.filter(i => i.chapter === k);
+    const contract = its.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
+    const earned = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price), 0);
+    return `<tr><td>${l}</td><td>${its.length}</td><td>${fmt(contract)}</td><td>${fmt(earned)}</td></tr>`;
+  }).join('');
+  const css = 'body{font-family:system-ui,sans-serif;direction:rtl;padding:24px;color:#172033;font-size:13px}'
+    + 'h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;border-bottom:1px solid #ccd5e1;padding-bottom:4px;margin-top:22px}'
+    + 'table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #d7dde8;padding:6px;text-align:right}th{background:#eef3fb}'
+    + '.k{display:inline-block;width:23%;border:1px solid #d7dde8;padding:8px;margin:2px;vertical-align:top}'
+    + '@media print{button{display:none}}';
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تقرير ${esc(CURRENT.name)}</title><style>${css}</style></head><body>
+    <button onclick="window.print()">طباعة / حفظ PDF</button>
+    <h1>تقرير متابعة ${esc(CURRENT.name)} · ${esc(CURRENT.compound)}</h1>
+    <div>تاريخ التقرير: ${today()}</div>
+    <h2>الملخص</h2>
+    <div class="k">الصبات<br><b>${GROUPS.length}</b></div>
+    <div class="k">الخرسانة الهندسية (م³)<br><b>${fmt(eng)}</b></div>
+    <div class="k">الخرسانة الفعلية من الإيصالات (م³)<br><b>${fmt(act)}</b></div>
+    <div class="k">المدفوع حتى الآن (ج.م)<br><b>${fmt(certPaid)}</b></div>
+    <div class="k">نسبة تنفيذ المقايسة بالقيمة<br><b>${boqContract ? fmt(boqEarned / boqContract * 100) + '%' : '—'}</b></div>
+    <div class="k">الهالك في الحديد<br><b>${s.waste == null ? '—' : fmt(s.waste) + '%'}</b></div>
+    <h2>الخرسانة</h2>
+    <table><thead><tr><th>الصبة</th><th>الدور</th><th>الفاصل</th><th>الهندسي</th><th>الفعلي</th><th>الفرق</th></tr></thead><tbody>${groupRows || '<tr><td colspan="6">مفيش صبات</td></tr>'}</tbody></table>
+    <h2>الحديد</h2>
+    <table><tbody>
+      <tr><th>الموّرد (طن)</th><td>${fmt(s.supplied)}</td><th>المسلّم للاستشاري (طن)</th><td>${fmt(s.executed)}</td></tr>
+      <tr><th>المحسوب للصرف (طن)</th><td>${fmt(s.billed)}</td><th>المتوقع في الموقع (طن)</th><td>${fmt(s.expected)}</td></tr>
+      <tr><th>الجرد (طن)</th><td>${fmt(s.counted)}</td><th>تاريخ الجرد</th><td>${esc(s.countDate || '—')}</td></tr>
+    </tbody></table>
+    <h2>المستخلصات</h2>
+    <table><thead><tr><th>رقم</th><th>التاريخ</th><th>الجاري</th><th>الحالة</th></tr></thead><tbody>${certRows || '<tr><td colspan="4">مفيش مستخلصات</td></tr>'}</tbody></table>
+    <h2>المقايسة حسب الأبواب</h2>
+    <table><thead><tr><th>الباب</th><th>البنود</th><th>العقد</th><th>المنفذ</th></tr></thead><tbody>${chRows}</tbody></table>
+  </body></html>`);
+  w.document.close();
+}
+
+/* ---------- الاستيراد ---------- */
+const IMP = {
+  steel:    {label:'توريدات حديد', table:'steel_deliveries', fields:[
+    ['date','التاريخ',/تاريخ|date/i],['tons','الكمية (طن)',/وزن|طن|كمية|tons/i],['dia','القطر',/قطر|dia/i],
+    ['grade','النوع',/نوع|grade/i],['supplier','المورد',/مورد|مصنع|supplier/i],['invoice','رقم الإذن / الفاتورة',/إذن|اذن|فاتورة|invoice/i]]},
+  receipts: {label:'إيصالات خرسانة', table:'concrete_receipts', fields:[
+    ['date','التاريخ',/تاريخ|date/i],['group','الصبة',/صبة|صب|group/i],['plant','المحطة',/محطة|مصنع|plant/i],
+    ['m3','الكمية (م³)',/م3|م³|متر|كمية|m3/i],['ticket','رقم الإيصال',/إيصال|ايصال|تذكرة|ticket/i]]},
+  boq:      {label:'بنود مقايسة', table:'boq_items', fields:[
+    ['code','الكود',/كود|code|رقم البند/i],['name','الوصف',/وصف|بيان|description|البند/i],['unit','الوحدة',/وحدة|unit/i],
+    ['qty','الكمية',/كمية|qty/i],['price','السعر',/سعر|price/i]]},
+  certs:    {label:'مستخلصات', table:'certificates', fields:[
+    ['no','رقم المستخلص',/رقم|no/i],['date','التاريخ',/تاريخ|date/i],['amount','الجاري (ج.م)',/جاري|مبلغ|قيمة|amount/i],['status','الحالة',/حالة|status/i]]},
+  review:   {label:'مراجعة مستخلص المقاول', table:null, fields:[
+    ['code','الكود',/كود|code|رقم البند/i],['name','الوصف',/وصف|بيان|description|البند/i],['qty','الكمية',/كمية|qty/i],
+    ['price','السعر',/سعر|price/i],['amount','الإجمالي',/إجمالي|اجمالي|مبلغ|amount/i]]}
+};
+const LBL = {delivery_date:'التاريخ',tons:'الطن',diameter:'القطر',grade:'النوع',supplier:'المورد',invoice:'الإذن',
+  receipt_date:'التاريخ',group_id:'الصبة',plant_id:'المحطة',m3:'م³',ticket:'الإيصال',chapter:'الباب',code:'الكود',
+  name:'الوصف',unit:'الوحدة',qty:'الكمية',price:'السعر',no:'رقم',cert_date:'التاريخ',amount_current:'الجاري',status:'الحالة'};
+let IM = {headers:[], data:[]};
+
+async function readImportSource(){
+  if(typeof XLSX === 'undefined'){ $('im_msg').textContent = 'مكتبة الإكسل ما اتحملتش، اتأكد من النت وحدّث الصفحة'; return false; }
+  const f = $('im_file').files[0];
+  let rows;
+  if(f){
+    const wb = XLSX.read(await f.arrayBuffer(), {type:'array'});
+    rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:true});
+  } else {
+    rows = $('im_text').value.split(/\r?\n/).filter(l => l.trim()).map(l => l.includes('\t') ? l.split('\t') : l.split(','));
+  }
+  // صف العناوين = أول صف من أول 15 صف فيه أكبر عدد خلايا مملوءة
+  let hi = -1, best = 0;
+  rows.slice(0, 15).forEach((r, i) => {
+    const n = r.filter(c => String(c).trim() !== '').length;
+    if(n > best){ best = n; hi = i; }
+  });
+  if(hi < 0 || best < 2){ $('im_msg').textContent = 'مفيش بيانات مفهومة في الملف'; return false; }
+  IM.headers = rows[hi].map((h, i) => String(h).trim() || ('عمود ' + (i + 1)));
+  IM.data = rows.slice(hi + 1).filter(r => r.some(c => String(c).trim() !== ''));
+  $('im_msg').textContent = '';
+  return true;
+}
+
+function renderImportMap(){
+  const target = $('im_target').value, t = IMP[target];
+  const opts = '<option value="">— تجاهل —</option>' + IM.headers.map((h, i) => `<option value="${i}">${esc(h)}</option>`).join('');
+  let html = t.fields.map(([k, label, re]) => {
+    const auto = IM.headers.findIndex(h => re.test(h));
+    const o = auto >= 0 ? opts.replace(`value="${auto}"`, `value="${auto}" selected`) : opts;
+    return `<label>${label}<select id="im_f_${k}">${o}</select></label>`;
+  }).join('');
+  if(target === 'boq'){
+    html += `<label>الباب<select id="im_chapter">${BOQ_CH.map(([k,l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>`;
+  }
+  $('im_map').innerHTML = html;
+  $('im_map').querySelectorAll('select').forEach(s => s.addEventListener('change', renderImportPreview));
+  renderImportPreview();
+}
+
+function getMapped(){
+  const idx = {};
+  IMP[$('im_target').value].fields.forEach(([k]) => { const v = $('im_f_' + k).value; idx[k] = v === '' ? -1 : parseInt(v); });
+  return idx;
+}
+
+function normDate(v){
+  if(v === '' || v == null) return null;
+  const pad = x => String(x).padStart(2, '0');
+  if(typeof v === 'number' && v > 20000 && v < 70000){
+    return new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10);
+  }
+  const s = String(v).trim().replace(/\\/g, '/').replace(/-/g, '/');
+  let m = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if(m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){
+    const a = +m[1], b = +m[2]; let y = +m[3]; if(y < 100) y += 2000;
+    const day = a > 12 ? a : (b > 12 ? b : a);
+    const mon = a > 12 ? b : (b > 12 ? a : b);
+    return `${y}-${pad(mon)}-${pad(day)}`;
+  }
+  return null;
+}
+const num = v => (v == null || v === '') ? NaN : parseFloat(String(v).replace(/,/g, '').trim());
+const txt = v => String(v == null ? '' : v).trim();
+
+function buildRecords(){
+  const target = $('im_target').value, idx = getMapped();
+  const g = (row, k) => idx[k] >= 0 ? row[idx[k]] : '';
+  const recs = [];
+  IM.data.forEach(row => {
+    if(target === 'steel'){
+      const tons = num(g(row,'tons')); if(!(tons > 0)) return;
+      recs.push({ project_id: CURRENT.id, delivery_date: normDate(g(row,'date')), tons,
+        diameter: parseInt(g(row,'dia')) || null, grade: txt(g(row,'grade')) || null,
+        supplier: txt(g(row,'supplier')) || null, invoice: txt(g(row,'invoice')) || null, is_opening: false });
+    } else if(target === 'receipts'){
+      const gt = txt(g(row,'group')), pt = txt(g(row,'plant'));
+      const cands = GROUPS.filter(x => gt.includes(x.name) && gt.includes(x.floor) && gt.includes(x.fasel));
+      const grp = cands.length === 1 ? cands[0] : null;
+      const plant = PLANTS.find(x => x.name === pt) || PLANTS.find(x => pt && pt.includes(x.name));
+      const m3 = num(g(row,'m3')), date = normDate(g(row,'date'));
+      if(!grp || !date || !(m3 > 0)) return;
+      recs.push({ project_id: CURRENT.id, group_id: grp.id, plant_id: plant ? plant.id : null,
+        receipt_date: date, m3, ticket: txt(g(row,'ticket')) || null });
+    } else if(target === 'boq'){
+      const qty = num(g(row,'qty')), price = num(g(row,'price')), name = txt(g(row,'name'));
+      if(!name || isNaN(qty) || isNaN(price)) return;
+      recs.push({ project_id: CURRENT.id, chapter: $('im_chapter').value, code: txt(g(row,'code')) || null, name,
+        unit: txt(g(row,'unit')) || null, qty, price, executed_qty: 0 });
+    } else if(target === 'certs'){
+      const no = parseInt(g(row,'no')), date = normDate(g(row,'date')), amount = num(g(row,'amount'));
+      if(!no || !date || isNaN(amount)) return;
+      const st = txt(g(row,'status'));
+      recs.push({ project_id: CURRENT.id, no, cert_date: date, amount_current: amount,
+        status: ['ممضي','تحت المراجعة','مسودة'].includes(st) ? st : 'تحت المراجعة' });
+    }
+  });
+  return recs;
+}
+
+function renderImportPreview(){
+  const target = $('im_target').value;
+  $('im_save').classList.toggle('hidden', target === 'review');
+  if(!IM.data.length){ $('im_info').textContent = ''; $('im_preview').innerHTML = ''; return; }
+  if(target === 'review'){ renderReview(); return; }
+  const recs = buildRecords();
+  $('im_info').textContent = `${recs.length} صف جاهز · ${IM.data.length - recs.length} صف هيتخطى (بيانات ناقصة أو الصبة مش متطابقة)`;
+  const keys = recs[0] ? Object.keys(recs[0]).filter(k => k !== 'project_id') : [];
+  const show = (k, v) => {
+    if(k === 'group_id') { const x = GROUPS.find(q => q.id === v); return x ? x.name + ' ' + x.floor + ' ' + x.fasel : ''; }
+    if(k === 'plant_id') { const x = PLANTS.find(q => q.id === v); return x ? x.name : ''; }
+    if(k === 'chapter') { const x = BOQ_CH.find(q => q[0] === v); return x ? x[1] : v; }
+    if(k === 'is_opening') return v ? 'افتتاحي' : '';
+    return v == null ? '' : v;
+  };
+  $('im_preview').innerHTML = recs.length
+    ? `<table><thead><tr>${keys.map(k => `<th>${LBL[k] || esc(k)}</th>`).join('')}</tr></thead><tbody>${recs.slice(0, 50).map(r => `<tr>${keys.map(k => `<td>${esc(show(k, r[k]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    : '';
+}
+
+function renderReview(){
+  const idx = getMapped(), g = (row, k) => idx[k] >= 0 ? row[idx[k]] : '';
+  const norm = s => txt(s).replace(/\s+/g, ' ').toLowerCase();
+  const out = [];
+  IM.data.forEach(row => {
+    const code = txt(g(row,'code')), name = txt(g(row,'name'));
+    const qty = num(g(row,'qty')), price = num(g(row,'price'));
+    let amount = num(g(row,'amount'));
+    if(isNaN(amount) && !isNaN(qty) && !isNaN(price)) amount = qty * price;
+    if(!name && !code) return;
+    const item = (code && BOQ.find(i => i.code && i.code === code))
+      || BOQ.find(i => norm(i.name) === norm(name))
+      || BOQ.find(i => norm(name) && (norm(i.name).includes(norm(name)) || norm(name).includes(norm(i.name))));
+    let flag;
+    if(!item) flag = 'مش موجود في المقايسة';
+    else if(!isNaN(qty) && qty - Number(item.executed_qty) > 0.001) flag = 'كمية أكبر من المنفذ عندنا';
+    else if(!isNaN(price) && Math.abs(price - Number(item.price)) > 0.01) flag = 'سعر مختلف عن المقايسة';
+    else flag = 'مطابق';
+    out.push({ name: name || code, qty, price, amount, appQty: item ? Number(item.executed_qty) : null, appPrice: item ? Number(item.price) : null, flag });
+  });
+  const certTotal = out.reduce((a,r) => a + (isNaN(r.amount) ? 0 : r.amount), 0);
+  const bad = out.filter(r => r.flag !== 'مطابق').length;
+  const latest = CERTS.slice().sort((a,b) => b.no - a.no)[0];
+  $('im_preview').innerHTML = `
+    <div class="kpis" style="margin-bottom:10px">
+      <div class="kpi"><small>إجمالي المستخلص المرفوع (ج.م)</small><b>${fmt(certTotal)}</b></div>
+      <div class="kpi"><small>بنود فيها ملاحظة</small><b>${bad} من ${out.length}</b></div>
+      <div class="kpi"><small>آخر مستخلص مسجل</small><b>${latest ? 'رقم ' + latest.no + ' · ' + fmt(latest.amount_current) : '—'}</b></div>
+    </div>
+    <table><thead><tr><th>البند</th><th>كمية المقاول</th><th>المنفذ عندنا</th><th>سعر المقاول</th><th>سعر المقايسة</th><th>الإجمالي</th><th>الملاحظة</th></tr></thead>
+    <tbody>${out.map(r => `<tr><td>${esc(r.name)}</td><td>${fmt(r.qty)}</td><td>${fmt(r.appQty)}</td><td>${fmt(r.price)}</td><td>${fmt(r.appPrice)}</td><td>${fmt(r.amount)}</td>
+      <td><span class="pill ${r.flag === 'مطابق' ? 'ok' : 'bad'}">${esc(r.flag)}</span></td></tr>`).join('')}</tbody></table>`;
+}
+
+async function saveImport(){
+  const target = $('im_target').value, t = IMP[target];
+  const recs = buildRecords();
+  if(!recs.length){ $('im_msg').textContent = 'مفيش صفوف صالحة للحفظ'; return; }
+  if(!confirm(`هتضيف ${recs.length} صف في ${t.label}. تكمل؟`)) return;
+  for(let i = 0; i < recs.length; i += 200){
+    const { error } = await sb.from(t.table).insert(recs.slice(i, i + 200));
+    if(error){ $('im_msg').textContent = error.message; return; }
+  }
+  $('im_msg').textContent = 'اتضاف ' + recs.length + ' صف';
+  IM = {headers:[], data:[]};
+  $('im_map').innerHTML = ''; $('im_preview').innerHTML = ''; $('im_info').textContent = '';
+  $('im_file').value = ''; $('im_text').value = '';
+  await refreshAll();
+}
+
+sb.auth.onAuthStateChange((event, session) => {
+  if(session && session.user){ loadProjects(session.user); }
+  else { CURRENT = null; setHeader('متابعة كومباوند بهجة', 'شركة سيمفوني للتطوير العقاري'); $('who').textContent = ''; show('login'); }
+});
+</script>
+</body>
+</html>
