@@ -371,6 +371,17 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
         <div id="ncRes" style="margin-top:12px"></div>
       </div>
       <div class="card">
+        <h2>توقع التدفق النقدي <span>المستخلصات الجاية وتوقيت صرفها، بناءً على الصبات والحديد المسجلين</span></h2>
+        <div class="form">
+          <label>تاريخ أول مستخلص جاي<input id="cf_start" type="date"></label>
+          <label>عدد المستخلصات<input id="cf_n" type="number" value="6" min="1" max="24"></label>
+          <label>المدة بين المستخلصات (يوم)<input id="cf_gap" type="number" value="21" min="1"></label>
+          <label>مدة الصرف بعد التقديم (يوم)<input id="cf_pay" type="number" value="30" min="0"></label>
+        </div>
+        <button class="btn" id="calcCF">احسب التوقع</button>
+        <div id="cfRes" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
         <h2>مراجعة المستخلص <span>من تبويب استيراد: بتقارن إجمالي كل بند بالمقايسة</span></h2>
         <div class="muted">ارفع ملف المقاول من تبويب الاستيراد واختار "مراجعة مستخلص المقاول".</div>
       </div>
@@ -1372,8 +1383,8 @@ function lastCertDate(){
   const c = CERTS.slice().sort((a,b) => b.no - a.no)[0];
   return c ? c.cert_date : today();
 }
-function computeDue(T){
-  const base = lastCertDate();
+function computeDue(T, baseOverride){
+  const base = baseOverride || lastCertDate();
   const rows = [];
   GROUPS.forEach(g => (g.pours || []).forEach(p => {
     const d = pctAt(p.t7_date, p.t28_date, T) - pctAt(p.t7_date, p.t28_date, base);
@@ -1412,6 +1423,29 @@ function calcNextCert(){
     + '<div class="tw"><table><thead><tr><th>البند</th><th>النوع</th><th>الكمية</th><th>النسبة المضافة</th><th>المبلغ</th><th>السبب</th></tr></thead><tbody>'
     + out.map(r => '<tr><td>' + esc(r.desc) + '</td><td>' + esc(r.kind) + '</td><td>' + fmt(r.qty) + '</td><td>' + Math.round(r.pct * 100) + '%</td><td>' + fmt(r.amount) + '</td><td>' + esc(r.reason) + '</td></tr>').join('')
     + '</tbody></table></div>';
+}
+
+function cashFlowForecast(){
+  const start = $('cf_start').value || addDays(lastCertDate(), 21);
+  $('cf_start').value = start;
+  const n = Math.min(24, Math.max(1, parseInt($('cf_n').value) || 1));
+  const gap = Math.max(1, parseInt($('cf_gap').value) || 21);
+  const pay = Math.max(0, parseInt($('cf_pay').value) || 0);
+  if(!start){ $('cfRes').textContent = 'اختار تاريخ أول مستخلص جاي'; return; }
+  let base = lastCertDate(), T = start, cum = 0, total = 0;
+  const rows = [];
+  for(let k = 0; k < n; k++){
+    if(k > 0) T = addDays(T, gap);
+    const { total: amt } = computeDue(T, base);
+    cum += amt; total += amt;
+    rows.push({ no: k + 1, cert: T, amt, pay: addDays(T, pay), cum });
+    base = T;
+  }
+  $('cfRes').innerHTML = '<div class="kpi" style="margin-bottom:10px"><small>إجمالي المتوقع من ' + n + ' مستخلصات (ج.م)</small><b>' + fmt(total) + '</b></div>'
+    + '<div class="tw"><table><thead><tr><th>المستخلص</th><th>تاريخ التقديم</th><th>المتوقع (ج.م)</th><th>تاريخ الصرف المتوقع</th><th>التراكمي</th></tr></thead><tbody>'
+    + rows.map(r => '<tr><td>' + r.no + '</td><td>' + esc(r.cert) + '</td><td>' + fmt(r.amt) + '</td><td>' + esc(r.pay) + '</td><td>' + fmt(r.cum) + '</td></tr>').join('')
+    + '</tbody></table></div>'
+    + '<div class="muted" style="margin-top:8px">ده توقع مبني على الصبات والحديد المسجلين لحد دلوقتي، والكميات الهندسية المتوقعة. مش بيحسب بنود المباني والبنود اللي لسه ملهاش بيانات.</div>';
 }
 
 function draftCertificate(){
@@ -1776,6 +1810,7 @@ $('printReport').addEventListener('click', printReport);
 $('printReport2').addEventListener('click', printReport);
 $('draftCert').addEventListener('click', draftCertificate);
 $('calcNext').addEventListener('click', calcNextCert);
+$('calcCF').addEventListener('click', cashFlowForecast);
 $('im_read').addEventListener('click', async () => { if(await readImportSource()) renderImportMap(); });
 $('im_save').addEventListener('click', saveImport);
 $('im_target').addEventListener('change', () => { if(IM.data.length) renderImportMap(); });
