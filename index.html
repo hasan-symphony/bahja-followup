@@ -63,8 +63,10 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
   <section class="card">
     <h2>تسجيل الدخول</h2>
     <label>الإيميل<input id="email" type="email" autocomplete="email" placeholder="name@example.com"></label>
-    <button class="btn" id="sendLink">ابعت رابط الدخول</button>
-    <div class="muted" style="margin-top:10px">هيوصلك إيميل فيه رابط دخول، اضغط عليه من نفس الجهاز.</div>
+    <label>كلمة السر<input id="password" type="password" autocomplete="current-password"></label>
+    <button class="btn" id="signIn">دخول</button>
+    <button class="btn ghost" id="signUp">إنشاء حساب جديد</button>
+    <button class="btn ghost" id="resetPw">نسيت كلمة السر</button>
     <div id="loginMsg" class="muted"></div>
   </section>
 </main>
@@ -800,12 +802,30 @@ async function deleteRow(table, id, after){
 }
 
 /* ---------- أحداث ---------- */
-$('sendLink').addEventListener('click', async () => {
+function loginFields(){
+  const email = $('email').value.trim(), password = $('password').value;
+  return { email, password };
+}
+$('signIn').addEventListener('click', async () => {
+  const { email, password } = loginFields();
+  if(!email || !password){ $('loginMsg').textContent = 'اكتب الإيميل وكلمة السر'; return; }
+  $('loginMsg').textContent = 'بيدخل...';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  $('loginMsg').textContent = error ? 'الإيميل أو كلمة السر غلط' : '';
+});
+$('signUp').addEventListener('click', async () => {
+  const { email, password } = loginFields();
+  if(!email || password.length < 6){ $('loginMsg').textContent = 'اكتب الإيميل، وكلمة السر 6 حروف على الأقل'; return; }
+  $('loginMsg').textContent = 'بيتعمل الحساب...';
+  const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: window.location.href.split('#')[0] } });
+  if(error){ $('loginMsg').textContent = error.message; return; }
+  $('loginMsg').textContent = data.session ? '' : 'الحساب اتعمل. لو وصلك إيميل تأكيد، أكّده وبعدين ادخل.';
+});
+$('resetPw').addEventListener('click', async () => {
   const email = $('email').value.trim();
   if(!email){ $('loginMsg').textContent = 'اكتب الإيميل الأول'; return; }
-  $('loginMsg').textContent = 'بيتبعت...';
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href.split('#')[0] } });
-  $('loginMsg').textContent = error ? error.message : 'اتبعت. افتح الإيميل واضغط الرابط.';
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href.split('#')[0] });
+  $('loginMsg').textContent = error ? error.message : 'اتبعت إيميل تغيير كلمة السر. افتحه واضغط الرابط.';
 });
 $('signOut1').addEventListener('click', () => sb.auth.signOut());
 $('backProjects').addEventListener('click', async () => {
@@ -1115,7 +1135,14 @@ async function saveImport(){
   await refreshAll();
 }
 
-sb.auth.onAuthStateChange((event, session) => {
+sb.auth.onAuthStateChange(async (event, session) => {
+  if(event === 'PASSWORD_RECOVERY'){
+    const np = prompt('اكتب كلمة السر الجديدة (6 حروف على الأقل)');
+    if(np && np.length >= 6){
+      const { error } = await sb.auth.updateUser({ password: np });
+      alert(error ? error.message : 'اتغيرت كلمة السر، ادخل بيها من دلوقتي');
+    }
+  }
   if(session && session.user){ loadProjects(session.user); }
   else { CURRENT = null; setHeader('متابعة كومباوند بهجة', 'شركة سيمفوني للتطوير العقاري'); $('who').textContent = ''; show('login'); }
 });
