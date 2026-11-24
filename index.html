@@ -82,6 +82,7 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
     <button data-tab="receipts">إيصالات الخرسانة</button>
     <button data-tab="plants">المحطات</button>
     <button data-tab="steel">الحديد</button>
+    <button data-tab="certs">المستخلصات</button>
     <button id="backProjects">رجوع للمشاريع</button>
   </nav>
   <main>
@@ -138,6 +139,24 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
       <div class="card">
         <h2>إجمالي المكعبات من كل محطة</h2>
         <div class="tw"><table id="plantTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-certs" class="hidden">
+      <div class="card">
+        <h2>إضافة مستخلص <span>التراكمي بيتحسب تلقائياً من الجاري</span></h2>
+        <div class="form">
+          <label>رقم المستخلص<input id="x_no" type="number"></label>
+          <label>التاريخ<input id="x_date" type="date"></label>
+          <label>الجاري (ج.م)<input id="x_amt" type="number" step="0.01"></label>
+          <label>الحالة<select id="x_status"><option>ممضي</option><option>تحت المراجعة</option><option>مسودة</option></select></label>
+        </div>
+        <button class="btn" id="saveCert">حفظ المستخلص</button>
+        <div id="certMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>المستخلصات</h2>
+        <div class="tw"><table id="certTable"></table></div>
       </div>
     </section>
 
@@ -208,6 +227,7 @@ const today = () => new Date().toISOString().slice(0,10);
 let CURRENT = null;
 let GROUPS = [], PLANTS = [], RECEIPTS = [];
 let STEEL = [], DELIVERIES = [], COUNTS = [];
+let CERTS = [];
 
 function show(id){ ['login','projects','project'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
 function setHeader(title, sub){ $('title').textContent = title; $('subtitle').textContent = sub; }
@@ -239,7 +259,7 @@ async function openProject(p){
 }
 
 function switchTab(tab){
-  ['concrete','receipts','plants','steel'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['concrete','receipts','plants','steel','certs'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('nav button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
 }
 
@@ -259,6 +279,9 @@ async function refreshAll(){
   GROUPS = g.data || []; PLANTS = p.data || []; RECEIPTS = r.data || [];
   STEEL = s.data || []; DELIVERIES = d.data || []; COUNTS = c.data || [];
 
+  const certRes = await sb.from('certificates').select('*').eq('project_id', pid).order('no');
+  CERTS = certRes.data || [];
+
   const groupIds = GROUPS.map(x => x.id);
   let pours = [];
   if(groupIds.length){
@@ -276,6 +299,7 @@ function renderAll(){
   renderReceipts();
   renderPlants();
   renderSteel();
+  renderCerts();
 }
 
 /* ---------- الأرقام العامة ---------- */
@@ -379,6 +403,32 @@ async function saveReceipt(){
   });
   if(error){ $('receiptMsg').textContent = error.message; return; }
   $('r_m3').value = ''; $('r_ticket').value = ''; $('receiptMsg').textContent = '';
+  await refreshAll();
+}
+
+/* ---------- المستخلصات ---------- */
+function renderCerts(){
+  let cum = 0;
+  const rows = CERTS.slice().sort((a,b) => a.no - b.no).map(c => {
+    cum += Number(c.amount_current || 0);
+    const cls = c.status === 'ممضي' ? 'ok' : (c.status === 'مسودة' ? 'gray' : 'mid');
+    return `<tr><td>${c.no}</td><td>${esc(c.cert_date)}</td><td>${fmt(c.amount_current)}</td><td>${fmt(cum)}</td>
+      <td><span class="pill ${cls}">${esc(c.status)}</span></td>
+      <td><button class="btn small ghost" data-del="${c.id}" data-t="certificates">حذف</button></td></tr>`;
+  }).join('');
+  $('certTable').innerHTML = `<thead><tr><th>رقم</th><th>التاريخ</th><th>الجاري</th><th>التراكمي</th><th>الحالة</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="muted">مفيش مستخلصات</td></tr>'}</tbody>`;
+  document.querySelectorAll('#tab-certs button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow(b.dataset.t, b.dataset.del, refreshAll)));
+}
+
+async function saveCert(){
+  const no = parseInt($('x_no').value), date = $('x_date').value, amt = parseFloat($('x_amt').value);
+  if(!no || !date || isNaN(amt)){ $('certMsg').textContent = 'اكتب الرقم والتاريخ والمبلغ'; return; }
+  const { error } = await sb.from('certificates').insert({
+    project_id: CURRENT.id, no, cert_date: date, amount_current: amt, status: $('x_status').value
+  });
+  if(error){ $('certMsg').textContent = error.message; return; }
+  ['x_no','x_date','x_amt'].forEach(i => $(i).value = '');
+  $('certMsg').textContent = '';
   await refreshAll();
 }
 
@@ -486,6 +536,7 @@ $('savePlant').addEventListener('click', savePlant);
 $('saveDelivery').addEventListener('click', saveDelivery);
 $('saveCount').addEventListener('click', saveCount);
 $('saveSteel').addEventListener('click', saveSteel);
+$('saveCert').addEventListener('click', saveCert);
 
 sb.auth.onAuthStateChange((event, session) => {
   if(session && session.user){ loadProjects(session.user); }
