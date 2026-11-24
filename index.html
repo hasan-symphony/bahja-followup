@@ -186,11 +186,10 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
       <div class="card adm-only">
         <h2>إضافة صبة هندسية <span>الصبات بتتحسب على الهندسي</span></h2>
         <div class="form">
-          <label>الاسم<input id="g_name" placeholder="مثلاً: أعمدة البدروم Part 1"></label>
-          <label>المبنى<input id="g_building" placeholder="مثلاً: مبنى A"></label>
+          <label>المبنى<select id="g_building"></select></label>
           <label>النوع<select id="g_type"><option value="lean">عادية</option><option value="found">أساسات</option><option value="struct">هيكل</option></select></label>
-          <label>الدور<input id="g_floor" placeholder="بدروم / أرضي / أول"></label>
-          <label>الفاصل<input id="g_fasel" placeholder="Part 1"></label>
+          <label>الدور<select id="g_floor"></select></label>
+          <label>الفاصل<select id="g_fasel"></select></label>
           <label>الكمية الهندسية (م³)<input id="g_eng" type="number" step="0.01"></label>
           <label>تاريخ الصب الأول<input id="g_date" type="date"></label>
         </div>
@@ -207,8 +206,8 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
           <label>الصبة<select id="p_group"></select></label>
           <label>تاريخ الصب<input id="p_date" type="date"></label>
           <label>الهندسي (م³)<input id="p_eng" type="number" step="0.01"></label>
-          <label>الفعلي من الشيت (م³)<input id="p_act" type="number" step="0.01"></label>
         </div>
+        <div class="muted" style="margin:6px 0">الفعلي بياخد تلقائي من إيصالات الخرسانة المسجلة على الصبة، وبيطرح منه الكميات اللي اتسجلت في صبات قبلها.</div>
         <button class="btn" id="savePour">حفظ الصبة</button>
         <div id="pourMsg" class="err"></div>
       </div>
@@ -469,6 +468,9 @@ const bar = (v, ph) => {
 };
 const kpi = (l, v, s) => '<div class="kpi"><small>' + l + '</small><b>' + v + '</b>' + (s ? '<div class="muted">' + s + '</div>' : '') + '</div>';
 const TYPE_LABEL = {lean:'عادية', found:'أساسات', struct:'هيكل'};
+const FLOORS = ['بدروم','أرضي','أول','تاني','تالت','رابع','خامس','سادس','سابع','ثامن','تاسع','عاشر','سطح'];
+const FASELS = ['فاصل أول','فاصل تاني','فاصل تالت'];
+const selOpts = (arr, sel) => arr.map(x => '<option value="' + esc(x) + '"' + (x === sel ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
 const ROLE_LABEL = {owner:'مالك', engineer:'مهندس', pm:'مدير مشروع', viewer:'مشاهد'};
 const BOQ_CH = [['concrete','خرسانة'],['steel','حديد'],['electric','كهربا'],['masonry','مباني'],['plaster','محارة'],['paint','دهانات'],['marble','رخام'],['other','أخرى']];
 const chName = k => (BOQ_CH.find(c => c[0] === k) || [0, k])[1];
@@ -618,8 +620,9 @@ function renderKpis(){
 // الفعلي من الشيت: مجموع الصبات لو فيها فعلي، وإلا القيمة اللي على الصبة نفسها
 function groupStats(g){
   const pours = g.pours || [];
-  const act = pours.some(p => p.act_qty != null) ? pours.reduce((a,p) => a + Number(p.act_qty || 0), 0) : (g.act_qty == null ? null : Number(g.act_qty));
   const got = RECEIPTS.filter(r => r.group_id === g.id).reduce((a,r) => a + Number(r.m3 || 0), 0);
+  const hasRec = RECEIPTS.some(r => r.group_id === g.id);
+  const act = hasRec ? got : (pours.some(p => p.act_qty != null) ? pours.reduce((a,p) => a + Number(p.act_qty || 0), 0) : (g.act_qty == null ? null : Number(g.act_qty)));
   const eng = Number(g.eng_qty || 0);
   return { act, got, eng, pct: eng ? got / eng * 100 : null };
 }
@@ -646,13 +649,25 @@ function renderGroups(){
   $('groupTable').querySelectorAll('[data-dgroup]').forEach(b => b.addEventListener('click', () => deleteRow('concrete_groups', b.dataset.dgroup, refreshAll)));
 }
 
+function fillGroupForm(){
+  const blds = Array.from(new Set(['B2'].concat(BQS.map(r => r.building)))).filter(Boolean);
+  const cur = $('g_building').value;
+  $('g_building').innerHTML = selOpts(blds, cur || blds[0]);
+  const curF = $('g_floor').value;
+  $('g_floor').innerHTML = selOpts(FLOORS, curF || 'أرضي');
+  const curS = $('g_fasel').value;
+  $('g_fasel').innerHTML = selOpts(FASELS, curS || FASELS[0]);
+}
+
 async function saveGroup(){
-  const name = $('g_name').value.trim(), eng = parseFloat($('g_eng').value), date = $('g_date').value;
-  if(!name || isNaN(eng)){ $('groupMsg').textContent = 'اكتب الاسم والكمية الهندسية'; return; }
+  const type = $('g_type').value, floor = $('g_floor').value, fasel = $('g_fasel').value, building = $('g_building').value;
+  const name = TYPE_LABEL[type] + ' · ' + floor;
+  const eng = parseFloat($('g_eng').value), date = $('g_date').value;
+  if(!building || !floor || !fasel || isNaN(eng)){ $('groupMsg').textContent = 'اختار المبنى والدور والفاصل واكتب الكمية الهندسية'; return; }
   $('groupMsg').textContent = '';
   const { data, error } = await sb.from('concrete_groups').insert({
-    project_id: CURRENT.id, name, building: $('g_building').value.trim() || null, type: $('g_type').value,
-    floor: $('g_floor').value.trim() || '—', fasel: $('g_fasel').value.trim() || '—', eng_qty: eng
+    project_id: CURRENT.id, name, building, type,
+    floor, fasel, eng_qty: eng
   }).select().single();
   if(error){ $('groupMsg').textContent = error.message; return; }
   if(date){
@@ -660,7 +675,7 @@ async function saveGroup(){
     const { error: e2 } = await sb.from('pours').insert({ group_id: data.id, pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28), eng_qty: eng });
     if(e2){ $('groupMsg').textContent = 'الصبة اتسجلت بس تاريخ الصب ما اتسجلش: ' + e2.message; }
   }
-  ['g_name','g_building','g_floor','g_fasel','g_eng','g_date'].forEach(i => $(i).value = '');
+  ['g_eng','g_date'].forEach(i => $(i).value = '');
   await refreshAll();
 }
 
@@ -710,14 +725,19 @@ function renderPours(){
 
 async function savePour(){
   const gid = $('p_group').value, date = $('p_date').value;
-  const eng = parseFloat($('p_eng').value), act = parseFloat($('p_act').value);
+  const eng = parseFloat($('p_eng').value);
   if(!gid || !date){ $('pourMsg').textContent = 'اختار الصبة واكتب تاريخ الصب'; return; }
+  // الفعلي = إجمالي إيصالات الصبة - اللي اتصب قبل كده
+  const g = GROUPS.find(x => x.id === gid);
+  const received = RECEIPTS.filter(r => r.group_id === gid).reduce((a,r) => a + Number(r.m3 || 0), 0);
+  const before = (g && g.pours || []).reduce((a,q) => a + Number(q.act_qty || 0), 0);
+  const act = Math.max(0, received - before);
   const { error } = await sb.from('pours').insert({
     group_id: gid, pour_date: date, t7_date: addDays(date, 7), t28_date: addDays(date, 28),
-    eng_qty: isNaN(eng) ? null : eng, act_qty: isNaN(act) ? null : act
+    eng_qty: isNaN(eng) ? null : eng, act_qty: act
   });
   if(error){ $('pourMsg').textContent = error.message; return; }
-  $('p_eng').value = ''; $('p_act').value = ''; $('pourMsg').textContent = '';
+  $('p_eng').value = ''; $('pourMsg').textContent = '';
   await refreshAll();
 }
 
@@ -878,6 +898,7 @@ $('bqcExport').addEventListener('click', exportBQ);
 
 function renderBoq(){
   renderBQ();
+  fillGroupForm();
   const sums = BOQ_CH.map(([k,l]) => {
     const its = BOQ.filter(i => i.chapter === k);
     const contract = its.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
