@@ -257,6 +257,11 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
         <h2>ملخص المقايسة حسب الأبواب <span>الصرف 90% لحد التسليم النهائي، و100% بعده</span></h2>
         <div class="tw"><table id="boqSum"></table></div>
       </div>
+      <div class="card">
+        <h2>كميات الخرسانة من المقايسة <span>اكتب كميات كل مبنى من المقايسة، والتقارير بتحسب الإنجاز منها</span></h2>
+        <div class="tw"><table id="bqcTable"></table></div>
+        <div style="margin-top:12px"><button class="btn small ghost" id="bqcExport">تصدير الكميات (إكسل)</button></div>
+      </div>
       <div class="card adm-only">
         <h2>إضافة بند</h2>
         <div class="form">
@@ -546,6 +551,11 @@ async function refreshAll(){
   BOQ = boqRes.data || [];
   const docRes = await sb.from('documents').select('*').eq('project_id', pid).order('doc_date', {ascending:false});
   DOCS = docRes.data || [];
+  const bqRes = await sb.from('building_quantities').select('*').eq('project_id', pid);
+  if(bqRes.error){ console.warn('building_quantities: ' + bqRes.error.message); BQS = []; }
+  else BQS = bqRes.data || [];
+  BQ = {};
+  BQS.forEach(r => { BQ[r.building] = { lean: Number(r.lean_qty || 0), found: Number(r.found_qty || 0), struct: Number(r.struct_qty || 0) }; });
   const schedRes = await sb.from('schedule_tasks').select('*').eq('project_id', pid).order('start_date');
   SCHED_ERR = schedRes.error ? schedRes.error.message : null;
   SCHEDULE = schedRes.data || [];
@@ -825,7 +835,49 @@ function runSearch(q){
 // نسبة الصرف: الخرسانة 100%، والباقي 90% لحد التسليم النهائي ثم 100%
 function payPct(i){ return (i.chapter === 'concrete' || i.accepted) ? 1 : 0.9; }
 
+function renderBQ(){
+  const ro = !ADM();
+  const inp = (v, cls) => '<input type="number" step="0.01" class="' + cls + '" value="' + (v == null ? '' : v) + '"' + (ro ? ' disabled' : '') + '>';
+  const rows = BQS.slice().sort((a,b) => String(a.building).localeCompare(String(b.building), 'ar')).map(r => {
+    const t = Number(r.lean_qty || 0) + Number(r.found_qty || 0) + Number(r.struct_qty || 0);
+    return '<tr data-bqrow="' + r.id + '"><td>' + esc(r.building) + '</td><td>' + inp(r.lean_qty, 'bq-l') + '</td><td>' + inp(r.found_qty, 'bq-f') + '</td><td>' + inp(r.struct_qty, 'bq-s') + '</td><td>' + fmt(t) + '</td>'
+      + '<td class="adm-btn"><button class="btn small ghost" data-bqsave="' + r.id + '">حفظ</button> <button class="btn small ghost" data-bqdel="' + r.id + '">حذف</button></td></tr>';
+  }).join('');
+  const addRow = ro ? '' : '<tr><td><input id="bq_new_name" placeholder="اسم المبنى مثل B2"></td><td><input type="number" step="0.01" id="bq_new_l"></td><td><input type="number" step="0.01" id="bq_new_f"></td><td><input type="number" step="0.01" id="bq_new_s"></td><td></td><td><button class="btn small" id="bqAdd">إضافة مبنى</button></td></tr>';
+  $('bqcTable').innerHTML = '<thead><tr><th>المبنى</th><th>خرسانة عادية م³</th><th>أساسات مسلحة م³</th><th>هيكل مسلح م³</th><th>الإجمالي م³</th><th class="adm-btn"></th></tr></thead>'
+    + '<tbody>' + (rows + addRow || '<tr><td colspan="6" class="muted">مفيش مباني لسه</td></tr>') + '</tbody>';
+  const readRow = tr => ({ lean_qty: parseFloat(tr.querySelector('.bq-l').value) || 0, found_qty: parseFloat(tr.querySelector('.bq-f').value) || 0, struct_qty: parseFloat(tr.querySelector('.bq-s').value) || 0 });
+  $('bqcTable').querySelectorAll('[data-bqsave]').forEach(b => b.addEventListener('click', async () => {
+    const tr = b.closest('tr'); const id = b.dataset.bqsave;
+    const r = BQS.find(x => x.id === id); if(!r) return;
+    const { error } = await sb.from('building_quantities').update(readRow(tr)).eq('id', id);
+    if(error) alert(error.message); await refreshAll();
+  }));
+  $('bqcTable').querySelectorAll('[data-bqdel]').forEach(b => b.addEventListener('click', () => deleteRow('building_quantities', b.dataset.bqdel, refreshAll)));
+  const add = $('bqAdd');
+  if(add) add.addEventListener('click', async () => {
+    const name = $('bq_new_name').value.trim();
+    if(!name){ alert('اكتب اسم المبنى'); return; }
+    const { error } = await sb.from('building_quantities').insert({
+      project_id: CURRENT.id, building: name,
+      lean_qty: parseFloat($('bq_new_l').value) || 0, found_qty: parseFloat($('bq_new_f').value) || 0, struct_qty: parseFloat($('bq_new_s').value) || 0
+    });
+    if(error){ alert(error.message); return; }
+    await refreshAll();
+  });
+}
+
+function exportBQ(){
+  const data = [['المبنى', 'خرسانة عادية (م³)', 'أساسات مسلحة (م³)', 'هيكل مسلح (م³)', 'الإجمالي (م³)']]
+    .concat(BQS.map(r => { const l = Number(r.lean_qty || 0), f = Number(r.found_qty || 0), st = Number(r.struct_qty || 0); return [r.building, l, f, st, l + f + st]; }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'كميات المقايسة');
+  XLSX.writeFile(wb, 'كميات_المقايسة.xlsx');
+}
+$('bqcExport').addEventListener('click', exportBQ);
+
 function renderBoq(){
+  renderBQ();
   const sums = BOQ_CH.map(([k,l]) => {
     const its = BOQ.filter(i => i.chapter === k);
     const contract = its.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
@@ -1236,7 +1288,7 @@ function nextTest(g, t){
   return best;
 }
 // كميات الخرسانة في المقايسة (م³) لكل مبنى: عادية / أساسات مسلحة / هيكل مسلح (توريد ومصنعيات بنفس الكمية)
-const BOQ_CONC = { 'B2': { lean: 182, found: 1393, struct: 3850 } };
+let BQ = {}, BQS = [];  // كميات المقايسة لكل مبنى (من شاشة كميات المقايسة)
 function buildingRows(t){
   const map = {};
   const ensure = n => map[n] || (map[n] = { name: n, groups: 0, eng: 0, got: 0, poured: 0, engPoured: 0, steelEng: 0, steelBilled: 0 });
@@ -1252,7 +1304,7 @@ function buildingRows(t){
     b.steelBilled += Number(x.eng_ton || 0) * steelPctAt(x, t);
   });
   return Object.values(map).map(b => {
-    const q = BOQ_CONC[b.name];
+    const q = BQ[b.name];
     const target = q ? q.lean + q.found + q.struct : null;
     return Object.assign(b, {
       target,
