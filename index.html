@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>متابعة كومباوند بهجة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#14213d;--navy2:#1f3a68;--bg:#eef2f7;--card:#fff;--ink:#172033;--mut:#64748b;--line:#e2e8f0;--red:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;
+  background-image:linear-gradient(rgba(20,33,61,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(20,33,61,.035) 1px,transparent 1px);background-size:22px 22px}
+.top{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:16px}
+.top h1{margin:0;font-size:19px;font-weight:700}
+.top .sub{color:#b9c7dd;font-size:12px}
+main{max-width:720px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--navy2);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1}
+label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--mut)}
+input{padding:10px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;color:var(--ink);width:100%}
+.btn{background:var(--navy2);color:#fff;border:0;padding:12px 16px;border-radius:10px;cursor:pointer;font:inherit;margin-top:10px;width:100%}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.muted{color:var(--mut);font-size:12.5px}
+.err{color:var(--red);font-size:13px;margin-top:8px}
+.proj{display:block;width:100%;text-align:right;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:8px;font:inherit;cursor:pointer}
+.proj b{display:block;font-size:15px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>متابعة كومباوند بهجة</h1>
+  <div class="sub">شركة سيمفوني للتطوير العقاري</div>
+</header>
+
+<main>
+  <!-- شاشة الدخول -->
+  <section id="login" class="card">
+    <h2>تسجيل الدخول</h2>
+    <label>الإيميل
+      <input id="email" type="email" autocomplete="email" placeholder="name@example.com">
+    </label>
+    <button class="btn" id="sendLink">ابعت رابط الدخول</button>
+    <div class="muted" style="margin-top:10px">هيوصلك إيميل فيه رابط دخول، اضغط عليه من نفس الجهاز.</div>
+    <div id="loginMsg" class="muted"></div>
+  </section>
+
+  <!-- شاشة المشاريع -->
+  <section id="projects" class="card hidden">
+    <h2>المشاريع <span class="muted" id="who"></span></h2>
+    <div id="projectList"><div class="muted">بيتحمّل...</div></div>
+    <button class="btn ghost" id="signOut">تسجيل الخروج</button>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://rhyhsatogeswudouehwn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_cMarVAfSYrQrRhSGGXffIQ_cdKzDfx_';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+
+function showLogin(){ $('login').classList.remove('hidden'); $('projects').classList.add('hidden'); }
+function showProjects(){ $('login').classList.add('hidden'); $('projects').classList.remove('hidden'); }
+
+async function loadProjects(user){
+  $('who').textContent = user.email || '';
+  const { data, error } = await sb.from('projects').select('id,name,compound').order('created_at');
+  const list = $('projectList');
+  if(error){ list.innerHTML = '<div class="err">' + error.message + '</div>'; return; }
+  if(!data || !data.length){ list.innerHTML = '<div class="muted">مفيش مشاريع ليك لسه. اتأكد إن حسابك متضاف كعضو في مشروع.</div>'; return; }
+  list.innerHTML = data.map(p =>
+    '<button class="proj" data-id="' + p.id + '"><b>' + p.name + '</b><span class="muted">' + p.compound + '</span></button>'
+  ).join('');
+  list.querySelectorAll('.proj').forEach(b => b.addEventListener('click', () => {
+    // الخطوة الجاية: فتح المشروع
+    alert('المشروع اتفتح: ' + b.querySelector('b').textContent + ' (هنا هنضيف الشاشات)');
+  }));
+}
+
+$('sendLink').addEventListener('click', async () => {
+  const email = $('email').value.trim();
+  if(!email){ $('loginMsg').textContent = 'اكتب الإيميل الأول'; return; }
+  $('loginMsg').textContent = 'بيتبعت...';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href.split('#')[0] } });
+  $('loginMsg').textContent = error ? error.message : 'اتبعت. افتح الإيميل واضغط الرابط.';
+});
+
+$('signOut').addEventListener('click', async () => { await sb.auth.signOut(); showLogin(); });
+
+sb.auth.onAuthStateChange((event, session) => {
+  if(session && session.user){ showProjects(); loadProjects(session.user); }
+  else { showLogin(); }
+});
+</script>
+</body>
+</html>
