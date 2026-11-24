@@ -442,17 +442,18 @@ function renderGroups(){
   const rows = GROUPS.map(g => {
     const dates = (g.pours || []).map(q => q.pour_date).join('، ') || '—';
     const got = RECEIPTS.filter(r => r.group_id === g.id).reduce((a,r) => a + Number(r.m3 || 0), 0);
-    const diff = got - Number(g.eng_qty || 0);
-    const cls = !got ? 'mid' : (Math.abs(diff) <= g.eng_qty * 0.01 ? 'ok' : 'bad');
+    const act = g.act_qty == null ? null : Number(g.act_qty);
+    const diff = act == null ? null : act - Number(g.eng_qty || 0);
+    const cls = act == null ? 'mid' : (Math.abs(diff) <= g.eng_qty * 0.01 ? 'ok' : 'bad');
     return `<tr>
       <td>${esc(g.name)}</td><td>${TYPE_LABEL[g.type] || esc(g.type)}</td><td>${esc(g.floor)}</td><td>${esc(g.fasel)}</td>
-      <td>${fmt(g.eng_qty)}</td><td>${fmt(got)}</td><td>${fmt(diff)}</td>
-      <td><span class="pill ${cls}">${!got ? 'لا توجد إيصالات' : (cls === 'ok' ? 'مطابق' : 'فرق')}</span></td>
+      <td>${fmt(g.eng_qty)}</td><td>${fmt(act)}</td><td>${fmt(got)}</td><td>${fmt(diff)}</td>
+      <td><span class="pill ${cls}">${act == null ? 'لا يوجد فعلي' : (cls === 'ok' ? 'مطابق' : 'فرق')}</span></td>
       <td>${esc(dates)}</td>
       <td><button class="btn small ghost" data-pour="${g.id}">+ صبة</button></td>
     </tr>`;
   }).join('');
-  $('groupTable').innerHTML = `<thead><tr><th>الصبة</th><th>النوع</th><th>الدور</th><th>الفاصل</th><th>الهندسي</th><th>الفعلي</th><th>الفرق</th><th>الحالة</th><th>تواريخ الصب</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="10" class="muted">مفيش صبات لسه</td></tr>'}</tbody>`;
+  $('groupTable').innerHTML = `<thead><tr><th>الصبة</th><th>النوع</th><th>الدور</th><th>الفاصل</th><th>الهندسي</th><th>الفعلي (الشيت)</th><th>الإيصالات</th><th>الفرق (فعلي − هندسي)</th><th>الحالة</th><th>تواريخ الصب</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="10" class="muted">مفيش صبات لسه</td></tr>'}</tbody>`;
   $('groupTable').querySelectorAll('button[data-pour]').forEach(b => b.addEventListener('click', () => addPour(b.dataset.pour)));
 }
 
