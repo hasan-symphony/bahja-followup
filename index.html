@@ -71,6 +71,7 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
 
 <main id="login" class="hidden">
   <section class="card">
+    <div style="text-align:center;margin-bottom:12px"><img src="assets/bahja-logo.jpg" alt="بهجة" style="max-width:240px;border-radius:8px"></div>
     <h2>تسجيل الدخول</h2>
     <label>الإيميل<input id="email" type="email" autocomplete="email" placeholder="name@example.com"></label>
     <label>كلمة السر<input id="password" type="password" autocomplete="current-password"></label>
@@ -138,6 +139,10 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
         <h2>نسب الإنجاز <span>الخرسانة والحديد والمقايسة والجدول الزمني</span>
           <button class="btn small" id="printReport2">طباعة / PDF</button></h2>
         <div class="kpis" id="repKpis" style="margin-bottom:0"></div>
+      </div>
+      <div class="card">
+        <h2>المخطط العام <span>Master plan مبنى B2 وباقي الكومباوند</span></h2>
+        <img src="assets/master-plan-b2.jpg" alt="الماستر بلان" style="width:100%;max-width:520px;display:block;margin:auto;border-radius:10px">
       </div>
       <div class="card">
         <h2>التقرير حسب المبنى <span>الخرسانة المصبوبة من الإيصالات، والحديد المحسوب للصرف</span></h2>
@@ -1152,7 +1157,7 @@ function renderSchedule(){
       ? pctTxt(x.act)
       : '<input class="adm-btn" type="number" min="0" max="100" step="1" value="' + (x.manual_pct || 0) + '" style="width:80px" data-pct="' + x.id + '"><span class="ro-only">' + pctTxt(x.act) + '</span>';
     return '<tr><td>' + esc(x.name) + '</td><td>' + esc(x.start_date) + '</td><td>' + esc(x.end_date) + '</td><td>' + fmt(x.w) + '</td>'
-      + '<td>' + (x.group_id ? 'مرتبط بصبة' : 'يدوي') + '</td>'
+      + '<td><select class="adm-btn" data-tlink="' + x.id + '" style="min-width:150px"><option value="">— يدوي —</option>' + GROUPS.map(g => '<option value="' + g.id + '"' + (g.id === x.group_id ? ' selected' : '') + '>' + esc(g.name) + ' · ' + esc(g.floor) + ' ' + esc(g.fasel) + '</option>').join('') + '</select><span class="ro-only">' + esc((GROUPS.find(g => g.id === x.group_id) || {name: 'يدوي'}).name) + '</span></td>'
       + '<td style="min-width:150px">' + pctTxt(x.plan) + bar(x.plan) + '</td>'
       + '<td style="min-width:150px">' + actCell + bar(x.act, x.plan) + '</td>'
       + '<td><span class="pill ' + cls + '">' + (v < -5 ? 'متأخر' : (v > 5 ? 'متقدم' : 'على الخطة')) + '</span></td>'
@@ -1162,6 +1167,11 @@ function renderSchedule(){
     + '<tbody>' + (rows || '<tr><td colspan="9" class="muted">مفيش أنشطة لسه. ضيفها من الفورم فوق أو استورد الجدول من تبويب الاستيراد</td></tr>') + '</tbody>';
   $('taskTable').querySelectorAll('input[data-pct]').forEach(inp => inp.addEventListener('change', async () => {
     const { error } = await sb.from('schedule_tasks').update({ manual_pct: Math.max(0, Math.min(100, parseFloat(inp.value) || 0)) }).eq('id', inp.dataset.pct);
+    if(error) alert(error.message);
+    await refreshAll();
+  }));
+  $('taskTable').querySelectorAll('select[data-tlink]').forEach(s => s.addEventListener('change', async () => {
+    const { error } = await sb.from('schedule_tasks').update({ group_id: s.value || null }).eq('id', s.dataset.tlink);
     if(error) alert(error.message);
     await refreshAll();
   }));
@@ -1383,6 +1393,7 @@ function draftCertificate(){
 /* ---------- التقرير المطور (طباعة / PDF) ---------- */
 function printReport(){
   const R = reportData();
+  const ASSETS = new URL('assets/', location.href).href;
   const w = window.open('', '_blank');
   if(!w){ alert('المتصفح منع النافذة، اسمح بالنوافذ المنبثقة'); return; }
   const cl = v => Math.max(0, Math.min(100, Number(v) || 0));
@@ -1413,7 +1424,7 @@ function printReport(){
     + '.muted{color:#64748b}.noprint{margin:12px 26px}@media print{.noprint{display:none}}';
   w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تقرير ' + esc(CURRENT.name) + '</title><style>' + css + '</style></head><body>'
     + '<div class="noprint"><button onclick="window.print()">طباعة / حفظ PDF</button></div>'
-    + '<div class="hd"><h1>تقرير متابعة ' + esc(CURRENT.name) + '</h1><p>' + esc(CURRENT.compound) + ' · بتاريخ ' + R.t + '</p></div>'
+    + '<div class="hd"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><img src="' + ASSETS + 'bahja-logo.jpg" style="height:56px;border-radius:6px"><img src="' + ASSETS + 'symphony-logo.jpg" style="height:56px;border-radius:6px"><img src="' + ASSETS + 'moharram-bakhoum-logo.png" style="height:44px;background:#fff;padding:4px;border-radius:6px"></div><h1>تقرير متابعة ' + esc(CURRENT.name) + '</h1><p>' + esc(CURRENT.compound) + ' · بتاريخ ' + R.t + '</p></div>'
     + '<div class="wrap">'
     + '<div class="tiles">'
     + tile('نسبة صب الخرسانة', pctTxt(R.concPct), fmt(R.got) + ' من ' + fmt(R.eng) + ' م³', 'ok')
@@ -1451,7 +1462,7 @@ const IMP = {
     ['no','رقم المستخلص',/رقم|no/i],['date','التاريخ',/تاريخ|date/i],['amount','الجاري (ج.م)',/جاري|مبلغ|قيمة|amount/i],['status','الحالة',/حالة|status/i]]},
   schedule: {label:'أنشطة الجدول الزمني', table:'schedule_tasks', fields:[
     ['name','النشاط',/نشاط|بند|وصف|activity|task|name/i],['start','تاريخ البداية',/بداية|start/i],
-    ['end','تاريخ النهاية',/نهاية|end|finish/i],['weight','الوزن',/وزن|أهمية|weight/i]]},
+    ['end','تاريخ النهاية',/نهاية|end|finish/i],['weight','الوزن',/وزن|أهمية|weight/i],['actual','الإنجاز الفعلي %',/إنجاز|انجاز|actual/i]]},
   review:   {label:'مراجعة مستخلص المقاول', table:null, fields:[
     ['code','الكود',/كود|code|رقم البند/i],['name','الوصف',/وصف|بيان|description|البند/i],['qty','الكمية',/كمية|qty/i],
     ['price','السعر',/سعر|price/i],['amount','الإجمالي',/إجمالي|اجمالي|مبلغ|amount/i]]}
@@ -1459,7 +1470,7 @@ const IMP = {
 const LBL = {delivery_date:'التاريخ',tons:'الطن',diameter:'القطر',grade:'النوع',supplier:'المورد',invoice:'الإذن',
   receipt_date:'التاريخ',group_id:'الصبة',plant_id:'المحطة',m3:'م³',ticket:'الإيصال',chapter:'الباب',code:'الكود',
   name:'الوصف / النشاط',unit:'الوحدة',qty:'الكمية',price:'السعر',no:'رقم',cert_date:'التاريخ',amount_current:'الجاري',status:'الحالة',
-  start_date:'البداية',end_date:'النهاية',weight:'الوزن'};
+  start_date:'البداية',end_date:'النهاية',weight:'الوزن',manual_pct:'الإنجاز %'};
 let IM = {headers:[], data:[]};
 
 // قراءة PDF: pdf.js بيطلع النص سطر سطر، والخلايا بتتفصل بالـTab. بيشتغل كويس مع الجداول البسيطة
@@ -1598,7 +1609,8 @@ function buildRecords(){
       const name = txt(g(row,'name')), st = normDate(g(row,'start')), en = normDate(g(row,'end'));
       const w = num(g(row,'weight'));
       if(!name || !st || !en) return;
-      recs.push({ project_id: CURRENT.id, name, start_date: st, end_date: en, weight: w > 0 ? w : 1, manual_pct: 0 });
+      const act = num(g(row,'actual'));
+      recs.push({ project_id: CURRENT.id, name, start_date: st, end_date: en, weight: w > 0 ? w : 1, manual_pct: Math.max(0, Math.min(100, isNaN(act) ? 0 : act)) });
     }
   });
   return recs;
