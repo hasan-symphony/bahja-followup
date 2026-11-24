@@ -390,7 +390,9 @@ function stockNumbers(){
   const last = COUNTS[0] || null;                  // أحدث جرد
   const counted = last ? Number(last.tons) : null;
   const waste = (counted == null || !supplied) ? null : (expected - counted) / supplied * 100;
-  return { supplied, executed, expected, counted, countDate: last ? last.count_date : null, waste };
+  const t = today();
+  const billed = STEEL.reduce((a,s) => a + Number(s.eng_ton || 0) * ((s.t28_date && s.t28_date <= t) ? 1 : (s.handover_date ? 0.8 : 0)), 0);
+  return { supplied, executed, billed, expected, counted, countDate: last ? last.count_date : null, waste };
 }
 
 function renderSteel(){
@@ -399,7 +401,8 @@ function renderSteel(){
   const wasteCls = s.waste == null ? 'gray' : (s.waste > 2 ? 'bad' : 'ok');
   $('steelKpis').innerHTML = `
     <div class="kpi"><small>الموّرد (طن)</small><b>${fmt(s.supplied)}</b></div>
-    <div class="kpi"><small>المسلّم للاستشاري (طن)</small><b>${fmt(s.executed)}</b></div>
+    <div class="kpi"><small>المسلّم للاستشاري - هندسي (طن)</small><b>${fmt(s.executed)}</b></div>
+    <div class="kpi"><small>المحسوب للصرف 80% / 100% (طن)</small><b>${fmt(s.billed)}</b></div>
     <div class="kpi"><small>المتوقع في الموقع (طن)</small><b>${fmt(s.expected)}</b></div>
     <div class="kpi"><small>نسبة الهالك <span class="pill ${wasteCls}">${s.waste != null && s.waste > 2 ? 'أكبر من 2%' : 'الحد 2%'}</span></small><b>${wasteTxt}</b>${s.countDate ? '<div class="muted">جرد ' + esc(s.countDate) + '</div>' : ''}</div>`;
 
