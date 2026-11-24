@@ -1106,19 +1106,24 @@ async function deleteRow(table, id, after){
 }
 
 /* ---------- الجدول الزمني: المخطط مقابل الفعلي ---------- */
-// المخطط: نسبة الوقت اللي عدى من بداية النشاط لنهايته
+// الخطة: النشاط المفروض يكون خلص لو وصل تاريخ نهايته المعتمد (أو خلص فعلاً). مفيش نسب وسطية
 function planPct(t){
-  const n = D(today()), s = D(t.start_date), e = D(t.end_date);
-  if(e <= s) return n >= e ? 100 : 0;
-  if(n <= s) return 0;
-  if(n >= e) return 100;
-  return (n - s) / (e - s) * 100;
+  return (today() >= t.end_date || actPct(t) >= 100) ? 100 : 0;
 }
-// الفعلي: لو النشاط مربوط بصبة، من الإيصالات. لو لا، الإدخال اليدوي
+// الفعلي: النشاط المربوط بصبة بيبقى خلص (100%) لما كل صبات العنصر تتسجل (مجموع الهندسي للصبات = الهندسي الكلي للعنصر).
+// النشاط اليدوي بيتكتب بإيدك (0 أو 100)
 function actPct(t){
   if(t.group_id){
     const g = GROUPS.find(x => x.id === t.group_id);
-    if(g){ const st = groupStats(g); if(st.pct != null) return Math.min(100, st.pct); }
+    if(g){
+      const ps = g.pours || [];
+      if(!ps.length) return 0;
+      // العنصر بيبقى 100% لما كل صبّاته تخلص: مجموع الهندسي للصبات وصل للهندسي الكلي للعنصر
+      const total = Number(g.eng_qty || 0);
+      if(!total) return 100;
+      const poured = ps.reduce((a,p) => a + Number(p.eng_qty || 0), 0);
+      return poured >= total - 0.01 ? 100 : 0;
+    }
   }
   return Number(t.manual_pct || 0);
 }
@@ -1251,7 +1256,8 @@ function reportData(){
     const earned = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price), 0);
     return { l, n: its.length, contract, earned, pct: contract ? earned / contract * 100 : null };
   }).filter(r => r.n > 0);
-  const tasks = SCHEDULE.map(x => ({ ...x, plan: planPct(x), act: actPct(x), w: Number(x.weight) || 1 }));
+  // النشاط اللي خلص (فعلي 100%) بيبقى مخططه 100% حتى لو خلص قبل موعده
+  const tasks = SCHEDULE.map(x => { const act = actPct(x); return { ...x, plan: act >= 100 ? 100 : planPct(x), act, w: Number(x.weight) || 1 }; });
   const wsum = tasks.reduce((a,x) => a + x.w, 0);
   const planAll = wsum ? tasks.reduce((a,x) => a + x.plan * x.w, 0) / wsum : null;
   const actAll = wsum ? tasks.reduce((a,x) => a + x.act * x.w, 0) / wsum : null;
