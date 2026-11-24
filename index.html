@@ -250,7 +250,7 @@ async function refreshAll(){
     sb.from('concrete_groups').select('*').eq('project_id', pid).order('created_at'),
     sb.from('plants').select('*').eq('project_id', pid).order('name'),
     sb.from('concrete_receipts').select('*').eq('project_id', pid).order('receipt_date', {ascending:false}),
-    sb.from('steel_items').select('*').eq('project_id', pid).order('created_at'),
+    sb.from('steel_items').select('*').eq('project_id', pid).order('name'),
     sb.from('steel_deliveries').select('*').eq('project_id', pid).order('delivery_date', {ascending:false}),
     sb.from('steel_counts').select('*').eq('project_id', pid).order('count_date', {ascending:false})
   ]);
