@@ -1548,11 +1548,13 @@ async function readImportSource(){
   } else {
     rows = $('im_text').value.split(/\r?\n/).filter(l => l.trim()).map(l => l.includes('\t') ? l.split('\t') : l.split(','));
   }
-  let hi = -1, best = 0;
-  rows.slice(0, 15).forEach((r, i) => {
-    const n = r.filter(c => String(c).trim() !== '').length;
-    if(n > best){ best = n; hi = i; }
-  });
+  // صف العناوين = أول صف من أول 15 صف فيه أغلب الخلايا كلام (مش أرقام ولا تواريخ)
+  const isText = c => typeof c === 'string' && c.trim() !== '' && isNaN(Number(c));
+  const textCount = r => r.filter(isText).length;
+  const top = rows.slice(0, 15);
+  const maxText = Math.max(0, ...top.map(textCount));
+  const hi = top.findIndex(r => textCount(r) >= Math.max(2, maxText * 0.6));
+  const best = hi >= 0 ? textCount(top[hi]) : 0;
   if(hi < 0 || best < 2){ $('im_msg').textContent = 'مفيش بيانات مفهومة في الملف'; return false; }
   IM.headers = rows[hi].map((h, i) => String(h).trim() || ('عمود ' + (i + 1)));
   IM.data = rows.slice(hi + 1).filter(r => r.some(c => String(c).trim() !== ''));
