@@ -83,6 +83,8 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
     <button data-tab="plants">المحطات</button>
     <button data-tab="steel">الحديد</button>
     <button data-tab="certs">المستخلصات</button>
+    <button data-tab="boq">المقايسة</button>
+    <button data-tab="docs">المستندات</button>
     <button id="backProjects">رجوع للمشاريع</button>
   </nav>
   <main>
@@ -139,6 +141,56 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
       <div class="card">
         <h2>إجمالي المكعبات من كل محطة</h2>
         <div class="tw"><table id="plantTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-boq" class="hidden">
+      <div class="card">
+        <h2>ملخص المقايسة حسب الأبواب <span>الصرف 90% لحد التسليم النهائي، و100% بعده</span></h2>
+        <div class="tw"><table id="boqSum"></table></div>
+      </div>
+      <div class="card">
+        <h2>إضافة بند</h2>
+        <div class="form">
+          <label>الباب<select id="b_ch"></select></label>
+          <label>الكود<input id="b_code"></label>
+          <label>الوصف<input id="b_name"></label>
+          <label>الوحدة<input id="b_unit"></label>
+          <label>الكمية<input id="b_qty" type="number" step="0.001"></label>
+          <label>السعر<input id="b_price" type="number" step="0.01"></label>
+          <label>المنفذ حتى الآن<input id="b_exec" type="number" step="0.001"></label>
+        </div>
+        <button class="btn" id="saveBoq">حفظ البند</button>
+        <div id="boqMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>استيراد مقايسة <span>انسخ من الإكسل بالترتيب: كود، وصف، وحدة، كمية، سعر</span></h2>
+        <label>الباب<select id="bp_ch"></select></label>
+        <textarea id="bp_text" rows="6" style="width:100%;font:inherit;border:1px solid #cbd5e1;border-radius:10px;padding:8px;margin-top:8px"></textarea>
+        <button class="btn" id="importBoq">استيراد البنود</button>
+        <div id="bpMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>البنود</h2>
+        <div class="tw"><table id="boqTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-docs" class="hidden">
+      <div class="card">
+        <h2>تسجيل مستند <span>الملف نفسه محتاج تخزين، دلوقتي بنسجل بياناته</span></h2>
+        <div class="form">
+          <label>النوع<select id="o_type"></select></label>
+          <label>الوصف<input id="o_title"></label>
+          <label>التاريخ<input id="o_date" type="date"></label>
+          <label>الرقم<input id="o_ref"></label>
+        </div>
+        <button class="btn" id="saveDoc">حفظ المستند</button>
+        <div id="docMsg" class="err"></div>
+      </div>
+      <div class="card">
+        <h2>المستندات</h2>
+        <div class="tw"><table id="docTable"></table></div>
       </div>
     </section>
 
@@ -228,6 +280,9 @@ let CURRENT = null;
 let GROUPS = [], PLANTS = [], RECEIPTS = [];
 let STEEL = [], DELIVERIES = [], COUNTS = [];
 let CERTS = [];
+let BOQ = [], DOCS = [];
+const BOQ_CH = [['concrete','خرسانة'],['steel','حديد'],['electric','كهربا'],['masonry','مباني'],['plaster','محارة'],['paint','دهانات'],['marble','رخام'],['other','أخرى']];
+const DOC_TYPES = ['مذكرة خصم','مذكرة إضافة','مقايسة مختومة','جواب مبعوث','برنامج زمني','أخرى'];
 
 function show(id){ ['login','projects','project'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
 function setHeader(title, sub){ $('title').textContent = title; $('subtitle').textContent = sub; }
@@ -259,7 +314,7 @@ async function openProject(p){
 }
 
 function switchTab(tab){
-  ['concrete','receipts','plants','steel','certs'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['concrete','receipts','plants','steel','certs','boq','docs'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('nav button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
 }
 
@@ -281,6 +336,10 @@ async function refreshAll(){
 
   const certRes = await sb.from('certificates').select('*').eq('project_id', pid).order('no');
   CERTS = certRes.data || [];
+  const boqRes = await sb.from('boq_items').select('*').eq('project_id', pid).order('created_at');
+  BOQ = boqRes.data || [];
+  const docRes = await sb.from('documents').select('*').eq('project_id', pid).order('doc_date', {ascending:false});
+  DOCS = docRes.data || [];
 
   const groupIds = GROUPS.map(x => x.id);
   let pours = [];
@@ -300,6 +359,8 @@ function renderAll(){
   renderPlants();
   renderSteel();
   renderCerts();
+  renderBoq();
+  renderDocs();
 }
 
 /* ---------- الأرقام العامة ---------- */
@@ -403,6 +464,101 @@ async function saveReceipt(){
   });
   if(error){ $('receiptMsg').textContent = error.message; return; }
   $('r_m3').value = ''; $('r_ticket').value = ''; $('receiptMsg').textContent = '';
+  await refreshAll();
+}
+
+/* ---------- المقايسة ---------- */
+function renderBoq(){
+  const sums = BOQ_CH.map(([k,l]) => {
+    const its = BOQ.filter(i => i.chapter === k);
+    const contract = its.reduce((a,i) => a + Number(i.qty) * Number(i.price), 0);
+    const earned = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price), 0);
+    const paid = its.reduce((a,i) => a + Number(i.executed_qty) * Number(i.price) * (i.accepted ? 1 : 0.9), 0);
+    return { l, n: its.length, contract, earned, paid };
+  });
+  $('boqSum').innerHTML = `<thead><tr><th>الباب</th><th>البنود</th><th>العقد</th><th>المنفذ</th><th>المصروف</th><th>المحجوز</th></tr></thead><tbody>${
+    sums.map(r => `<tr><td>${r.l}</td><td>${r.n}</td><td>${fmt(r.contract)}</td><td>${fmt(r.earned)}</td><td>${fmt(r.paid)}</td><td>${fmt(r.earned - r.paid)}</td></tr>`).join('')
+  }</tbody>`;
+
+  const chOpts = BOQ_CH.map(([k,l]) => `<option value="${k}">${l}</option>`).join('');
+  $('b_ch').innerHTML = chOpts;
+  $('bp_ch').innerHTML = chOpts;
+
+  const rows = BOQ.map(i => `<tr>
+      <td>${esc(i.code || '')}</td><td>${esc((BOQ_CH.find(c => c[0] === i.chapter) || [0,''])[1])}</td><td>${esc(i.name)}</td><td>${esc(i.unit || '')}</td>
+      <td>${fmt(i.qty)}</td><td>${fmt(i.price)}</td>
+      <td><input type="number" step="0.001" value="${i.executed_qty}" style="width:100px" data-exec="${i.id}"></td>
+      <td>${i.accepted ? '<span class="pill ok">تسليم نهائي</span>' : `<button class="btn small ghost" data-acc="${i.id}">تسليم نهائي</button>`}</td>
+      <td><button class="btn small ghost" data-del="${i.id}" data-t="boq_items">حذف</button></td></tr>`).join('');
+  $('boqTable').innerHTML = `<thead><tr><th>الكود</th><th>الباب</th><th>الوصف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th><th>المنفذ</th><th></th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">مفيش بنود لسه</td></tr>'}</tbody>`;
+  $('boqTable').querySelectorAll('input[data-exec]').forEach(inp => inp.addEventListener('change', () => updateExec(inp.dataset.exec, inp.value)));
+  $('boqTable').querySelectorAll('button[data-acc]').forEach(b => b.addEventListener('click', () => acceptItem(b.dataset.acc)));
+  $('boqTable').querySelectorAll('button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow('boq_items', b.dataset.del, refreshAll)));
+}
+
+async function updateExec(id, v){
+  const { error } = await sb.from('boq_items').update({ executed_qty: parseFloat(v) || 0 }).eq('id', id);
+  if(error) alert(error.message);
+  await refreshAll();
+}
+
+async function acceptItem(id){
+  if(!confirm('تسليم نهائي للبند ده؟ هيتصرف 100% بدل 90%.')) return;
+  const { error } = await sb.from('boq_items').update({ accepted: true }).eq('id', id);
+  if(error) alert(error.message);
+  await refreshAll();
+}
+
+async function saveBoqItem(){
+  const name = $('b_name').value.trim(), qty = parseFloat($('b_qty').value), price = parseFloat($('b_price').value);
+  if(!name || isNaN(qty) || isNaN(price)){ $('boqMsg').textContent = 'اكتب الوصف والكمية والسعر'; return; }
+  const { error } = await sb.from('boq_items').insert({
+    project_id: CURRENT.id, chapter: $('b_ch').value, code: $('b_code').value.trim() || null, name,
+    unit: $('b_unit').value.trim() || null, qty, price, executed_qty: parseFloat($('b_exec').value) || 0
+  });
+  if(error){ $('boqMsg').textContent = error.message; return; }
+  ['b_code','b_name','b_unit','b_qty','b_price','b_exec'].forEach(i => $(i).value = '');
+  $('boqMsg').textContent = '';
+  await refreshAll();
+}
+
+async function importBoq(){
+  const ch = $('bp_ch').value;
+  const lines = $('bp_text').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rows = []; let bad = 0;
+  lines.forEach(l => {
+    const p = l.includes('\t') ? l.split('\t') : l.split(',');
+    const [code, name, unit, qty, price] = p.map(x => (x || '').trim());
+    const q = parseFloat(String(qty).replace(/,/g,'')), pr = parseFloat(String(price).replace(/,/g,''));
+    if(!name || isNaN(q) || isNaN(pr)){ bad++; return; }
+    rows.push({ project_id: CURRENT.id, chapter: ch, code: code || null, name, unit: unit || null, qty: q, price: pr, executed_qty: 0 });
+  });
+  if(!rows.length){ $('bpMsg').textContent = 'مفيش سطور صالحة'; return; }
+  const { error } = await sb.from('boq_items').insert(rows);
+  if(error){ $('bpMsg').textContent = error.message; return; }
+  $('bp_text').value = '';
+  $('bpMsg').textContent = 'اتضاف ' + rows.length + ' بند' + (bad ? '، واتخطى ' + bad + ' سطر ناقص' : '');
+  await refreshAll();
+}
+
+/* ---------- المستندات ---------- */
+function renderDocs(){
+  $('o_type').innerHTML = DOC_TYPES.map(t => `<option>${t}</option>`).join('');
+  const rows = DOCS.map(d => `<tr><td>${esc(d.doc_type)}</td><td>${esc(d.title)}</td><td>${esc(d.doc_date || '—')}</td><td>${esc(d.ref || '')}</td>
+      <td><button class="btn small ghost" data-del="${d.id}" data-t="documents">حذف</button></td></tr>`).join('');
+  $('docTable').innerHTML = `<thead><tr><th>النوع</th><th>الوصف</th><th>التاريخ</th><th>الرقم</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted">مفيش مستندات</td></tr>'}</tbody>`;
+  document.querySelectorAll('#tab-docs button[data-del]').forEach(b => b.addEventListener('click', () => deleteRow(b.dataset.t, b.dataset.del, refreshAll)));
+}
+
+async function saveDoc(){
+  const title = $('o_title').value.trim(), date = $('o_date').value;
+  if(!title){ $('docMsg').textContent = 'اكتب الوصف'; return; }
+  const { error } = await sb.from('documents').insert({
+    project_id: CURRENT.id, doc_type: $('o_type').value, title, doc_date: date || null, ref: $('o_ref').value.trim() || null
+  });
+  if(error){ $('docMsg').textContent = error.message; return; }
+  ['o_title','o_date','o_ref'].forEach(i => $(i).value = '');
+  $('docMsg').textContent = '';
   await refreshAll();
 }
 
@@ -537,6 +693,9 @@ $('saveDelivery').addEventListener('click', saveDelivery);
 $('saveCount').addEventListener('click', saveCount);
 $('saveSteel').addEventListener('click', saveSteel);
 $('saveCert').addEventListener('click', saveCert);
+$('saveBoq').addEventListener('click', saveBoqItem);
+$('importBoq').addEventListener('click', importBoq);
+$('saveDoc').addEventListener('click', saveDoc);
 
 sb.auth.onAuthStateChange((event, session) => {
   if(session && session.user){ loadProjects(session.user); }
