@@ -187,6 +187,7 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
         <h2>إضافة صبة هندسية <span>الصبات بتتحسب على الهندسي</span></h2>
         <div class="form">
           <label>المبنى<select id="g_building"></select></label>
+          <label>العنصر<select id="g_element"></select></label>
           <label>النوع<select id="g_type"><option value="lean">عادية</option><option value="found">أساسات</option><option value="struct">هيكل</option></select></label>
           <label>الدور<select id="g_floor"></select></label>
           <label>الفاصل<select id="g_fasel"></select></label>
@@ -468,8 +469,9 @@ const bar = (v, ph) => {
 };
 const kpi = (l, v, s) => '<div class="kpi"><small>' + l + '</small><b>' + v + '</b>' + (s ? '<div class="muted">' + s + '</div>' : '') + '</div>';
 const TYPE_LABEL = {lean:'عادية', found:'أساسات', struct:'هيكل'};
-const FLOORS = ['بدروم','أرضي','أول','تاني','تالت','رابع','خامس','سادس','سابع','ثامن','تاسع','عاشر','سطح'];
-const FASELS = ['فاصل أول','فاصل تاني','فاصل تالت'];
+const FLOORS = ['بدروم','أرضي','أول','تاني','تالت','رابع','خامس','سادس','سابع'];
+const FASELS = ['F1','F2'];
+const ELEMENTS = { 'أعمدة':'struct', 'سقف':'struct', 'كمرات':'struct', 'حوائط قص':'struct', 'سلم':'struct', 'أساسات':'found', 'خرسانة عادية':'lean' };
 const selOpts = (arr, sel) => arr.map(x => '<option value="' + esc(x) + '"' + (x === sel ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
 const ROLE_LABEL = {owner:'مالك', engineer:'مهندس', pm:'مدير مشروع', viewer:'مشاهد'};
 const BOQ_CH = [['concrete','خرسانة'],['steel','حديد'],['electric','كهربا'],['masonry','مباني'],['plaster','محارة'],['paint','دهانات'],['marble','رخام'],['other','أخرى']];
@@ -657,11 +659,15 @@ function fillGroupForm(){
   $('g_floor').innerHTML = selOpts(FLOORS, curF || 'أرضي');
   const curS = $('g_fasel').value;
   $('g_fasel').innerHTML = selOpts(FASELS, curS || FASELS[0]);
+  const curE = $('g_element').value || Object.keys(ELEMENTS)[0];
+  $('g_element').innerHTML = selOpts(Object.keys(ELEMENTS), curE);
+  $('g_type').value = ELEMENTS[$('g_element').value] || 'struct';
+  $('g_element').onchange = () => { $('g_type').value = ELEMENTS[$('g_element').value] || 'struct'; };
 }
 
 async function saveGroup(){
   const type = $('g_type').value, floor = $('g_floor').value, fasel = $('g_fasel').value, building = $('g_building').value;
-  const name = TYPE_LABEL[type] + ' · ' + floor;
+  const name = $('g_element').value + ' · ' + floor;
   const eng = parseFloat($('g_eng').value), date = $('g_date').value;
   if(!building || !floor || !fasel || isNaN(eng)){ $('groupMsg').textContent = 'اختار المبنى والدور والفاصل واكتب الكمية الهندسية'; return; }
   $('groupMsg').textContent = '';
