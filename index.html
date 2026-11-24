@@ -1138,35 +1138,63 @@ async function saveTask(){
   await refreshAll();
 }
 
+// النهاية الفعلية: لو النشاط مربوط بصبة، بتبقى آخر صبة للصبة دي. لو لا، القيمة اللي تتكتب يدوي
+function schedEnd(x){
+  if(x.group_id){
+    const g = GROUPS.find(q => q.id === x.group_id);
+    const last = g ? (g.pours || []).map(p => p.pour_date).sort().pop() : null;
+    if(last) return last;
+  }
+  return x.actual_end || null;
+}
+// الانحراف بالأيام: موجب = متأخر. null = لسه مش وقته ومفيش نهاية فعلية
+function schedDev(x){
+  const ae = schedEnd(x);
+  if(ae) return Math.round((D(ae) - D(x.end_date)) / 86400000);
+  const t = today();
+  return t > x.end_date ? Math.round((D(t) - D(x.end_date)) / 86400000) : null;
+}
+
 function renderSchedule(){
   const R = reportData();
   $('schedDate').textContent = 'بتاريخ ' + R.t;
   $('taskMsg').textContent = SCHED_ERR ? 'جدول الأنشطة لسه مش موجود في الداتابيز: ' + SCHED_ERR : '';
   const gap = (R.actAll == null || R.planAll == null) ? null : R.actAll - R.planAll;
+  const lateN = R.tasks.filter(x => { const d = schedDev(x); return d != null && d > 0; }).length;
   $('schedKpis').innerHTML = [
     kpi('المخطط لحد النهاردة', pctTxt(R.planAll)),
     kpi('الفعلي', pctTxt(R.actAll)),
     kpi('الفرق', gap == null ? '—' : fmt(gap) + ' نقطة', gap == null ? '' : (gap < -5 ? 'متأخر' : (gap > 5 ? 'متقدم' : 'على الخطة'))),
-    kpi('أنشطة متأخرة', R.late.length)
+    kpi('أنشطة متأخرة عن المعتمد', lateN + ' من ' + R.tasks.length)
   ].join('');
 
   const rows = R.tasks.map(x => {
+    const dev = schedDev(x), ae = schedEnd(x);
+    const devTxt = dev == null ? 'لسه' : (dev > 0 ? 'متأخر ' + dev + ' يوم' : (dev < 0 ? 'قبل الموعد ' + (-dev) + ' يوم' : 'في الموعد'));
+    const devCls = dev == null ? 'gray' : (dev > 0 ? 'bad' : 'ok');
+    const linkOpts = '<option value="">— يدوي —</option>' + GROUPS.map(g => '<option value="' + g.id + '"' + (g.id === x.group_id ? ' selected' : '') + '>' + esc(g.name) + ' · ' + esc(g.floor) + ' ' + esc(g.fasel) + '</option>').join('');
+    const linkName = (GROUPS.find(g => g.id === x.group_id) || { name: 'يدوي' }).name;
+    const aeCell = x.group_id
+      ? esc(ae || '—')
+      : '<input class="adm-btn" type="date" value="' + (x.actual_end || '') + '" data-aend="' + x.id + '"><span class="ro-only">' + esc(ae || '—') + '</span>';
     const v = x.act - x.plan;
-    const cls = v < -5 ? 'bad' : (v > 5 ? 'ok' : 'mid');
-    const actCell = x.group_id
-      ? pctTxt(x.act)
-      : '<input class="adm-btn" type="number" min="0" max="100" step="1" value="' + (x.manual_pct || 0) + '" style="width:80px" data-pct="' + x.id + '"><span class="ro-only">' + pctTxt(x.act) + '</span>';
     return '<tr><td>' + esc(x.name) + '</td><td>' + esc(x.start_date) + '</td><td>' + esc(x.end_date) + '</td><td>' + fmt(x.w) + '</td>'
-      + '<td><select class="adm-btn" data-tlink="' + x.id + '" style="min-width:150px"><option value="">— يدوي —</option>' + GROUPS.map(g => '<option value="' + g.id + '"' + (g.id === x.group_id ? ' selected' : '') + '>' + esc(g.name) + ' · ' + esc(g.floor) + ' ' + esc(g.fasel) + '</option>').join('') + '</select><span class="ro-only">' + esc((GROUPS.find(g => g.id === x.group_id) || {name: 'يدوي'}).name) + '</span></td>'
-      + '<td style="min-width:150px">' + pctTxt(x.plan) + bar(x.plan) + '</td>'
-      + '<td style="min-width:150px">' + actCell + bar(x.act, x.plan) + '</td>'
-      + '<td><span class="pill ' + cls + '">' + (v < -5 ? 'متأخر' : (v > 5 ? 'متقدم' : 'على الخطة')) + '</span></td>'
+      + '<td><select class="adm-btn" data-tlink="' + x.id + '" style="min-width:150px">' + linkOpts + '</select><span class="ro-only">' + esc(linkName) + '</span></td>'
+      + '<td style="min-width:120px">' + pctTxt(x.plan) + bar(x.plan) + '</td>'
+      + '<td style="min-width:120px">' + (x.group_id ? pctTxt(x.act) : '<input class="adm-btn" type="number" min="0" max="100" step="1" value="' + (x.manual_pct || 0) + '" style="width:70px" data-pct="' + x.id + '"><span class="ro-only">' + pctTxt(x.act) + '</span>') + bar(x.act, x.plan) + '</td>'
+      + '<td>' + aeCell + '</td>'
+      + '<td><span class="pill ' + devCls + '">' + devTxt + '</span></td>'
       + '<td><button class="btn small ghost adm-btn" data-dtask="' + x.id + '">حذف</button></td></tr>';
   }).join('');
-  $('taskTable').innerHTML = '<thead><tr><th>النشاط</th><th>البداية</th><th>النهاية</th><th>الوزن</th><th>الربط</th><th>المخطط</th><th>الفعلي (العلامة = المخطط)</th><th>الحالة</th><th></th></tr></thead>'
-    + '<tbody>' + (rows || '<tr><td colspan="9" class="muted">مفيش أنشطة لسه. ضيفها من الفورم فوق أو استورد الجدول من تبويب الاستيراد</td></tr>') + '</tbody>';
+  $('taskTable').innerHTML = '<thead><tr><th>النشاط</th><th>معتمد: بداية</th><th>معتمد: نهاية</th><th>المدة</th><th>الربط بالصبة</th><th>المخطط %</th><th>الفعلي %</th><th>نهاية فعلية</th><th>الانحراف</th><th></th></tr></thead>'
+    + '<tbody>' + (rows || '<tr><td colspan="10" class="muted">مفيش أنشطة لسه. استورد الجدول المعتمد من تبويب الاستيراد</td></tr>') + '</tbody>';
   $('taskTable').querySelectorAll('input[data-pct]').forEach(inp => inp.addEventListener('change', async () => {
     const { error } = await sb.from('schedule_tasks').update({ manual_pct: Math.max(0, Math.min(100, parseFloat(inp.value) || 0)) }).eq('id', inp.dataset.pct);
+    if(error) alert(error.message);
+    await refreshAll();
+  }));
+  $('taskTable').querySelectorAll('input[data-aend]').forEach(inp => inp.addEventListener('change', async () => {
+    const { error } = await sb.from('schedule_tasks').update({ actual_end: inp.value || null }).eq('id', inp.dataset.aend);
     if(error) alert(error.message);
     await refreshAll();
   }));
@@ -1461,8 +1489,8 @@ const IMP = {
   certs:    {label:'مستخلصات', table:'certificates', fields:[
     ['no','رقم المستخلص',/رقم|no/i],['date','التاريخ',/تاريخ|date/i],['amount','الجاري (ج.م)',/جاري|مبلغ|قيمة|amount/i],['status','الحالة',/حالة|status/i]]},
   schedule: {label:'أنشطة الجدول الزمني', table:'schedule_tasks', fields:[
-    ['name','النشاط',/نشاط|بند|وصف|activity|task|name/i],['start','تاريخ البداية',/بداية|start/i],
-    ['end','تاريخ النهاية',/نهاية|end|finish/i],['weight','الوزن',/وزن|أهمية|weight/i],['actual','الإنجاز الفعلي %',/إنجاز|انجاز|actual/i]]},
+    ['name','النشاط',/نشاط|بند|وصف|activity|task|name/i],['start','تاريخ البداية',/بدا[يةه]|start/i],
+    ['end','تاريخ النهاية',/نها[يةه]|end|finish/i],['weight','المدة / الوزن',/وزن|أهمية|مدة|weight/i],['actual','الإنجاز الفعلي %',/إنجاز|انجاز|actual/i]]},
   review:   {label:'مراجعة مستخلص المقاول', table:null, fields:[
     ['code','الكود',/كود|code|رقم البند/i],['name','الوصف',/وصف|بيان|description|البند/i],['qty','الكمية',/كمية|qty/i],
     ['price','السعر',/سعر|price/i],['amount','الإجمالي',/إجمالي|اجمالي|مبلغ|amount/i]]}
