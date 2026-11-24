@@ -499,7 +499,8 @@ function runSearch(q){
   const hits = [];
   GROUPS.forEach(g => { const t = `${g.name} ${g.floor} ${g.fasel}`; if(t.toLowerCase().includes(q)) hits.push(`صبة: ${esc(t)} · هندسي ${fmt(g.eng_qty)}`); });
   STEEL.forEach(s => { if(s.name.toLowerCase().includes(q)) hits.push(`حديد: ${esc(s.name)} · ${fmt(s.eng_ton)} طن`); });
-  CERTS.forEach(c => { if(String(c.no).includes(q) || String(c.cert_date).includes(q)) hits.push(`مستخلص ${c.no} · ${esc(c.cert_date)} · ${fmt(c.amount_current)}`); });
+  const qNum = q.replace(/[^0-9]/g, '');
+  CERTS.forEach(c => { if(q.includes('مستخلص') || (qNum && String(c.no) === qNum) || String(c.cert_date).includes(q)) hits.push(`مستخلص ${c.no} · ${esc(c.cert_date)} · ${fmt(c.amount_current)}`); });
   BOQ.forEach(i => { if(i.name.toLowerCase().includes(q) || (i.code || '').toLowerCase().includes(q)) hits.push(`بند مقايسة: ${esc(i.name)} · ${fmt(i.qty)} ${esc(i.unit || '')}`); });
   $('qRes').innerHTML = hits.length
     ? hits.slice(0,30).map(h => `<div class="muted" style="padding:6px 0;border-bottom:1px solid var(--line)">${h}</div>`).join('')
