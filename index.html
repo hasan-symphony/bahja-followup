@@ -472,7 +472,7 @@ const kpi = (l, v, s) => '<div class="kpi"><small>' + l + '</small><b>' + v + '<
 const TYPE_LABEL = {lean:'عادية', found:'أساسات', struct:'هيكل'};
 const FLOORS = ['بدروم','أرضي','أول','تاني','تالت','رابع','خامس','سادس','سابع'];
 const FASELS = ['F1','F2'];
-const ELEMENTS = { 'أعمدة':'struct', 'سقف':'struct', 'كمرات':'struct', 'حوائط قص':'struct', 'سلم':'struct', 'أساسات':'found', 'خرسانة عادية':'lean' };
+const ELEMENTS = { 'قواعد عادية':'lean', 'أساسات مسلحة':'found', 'أعمدة':'struct', 'سقف':'struct' };
 const selOpts = (arr, sel) => arr.map(x => '<option value="' + esc(x) + '"' + (x === sel ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
 const ROLE_LABEL = {owner:'مالك', engineer:'مهندس', pm:'مدير مشروع', viewer:'مشاهد'};
 const BOQ_CH = [['concrete','خرسانة'],['steel','حديد'],['electric','كهربا'],['masonry','مباني'],['plaster','محارة'],['paint','دهانات'],['marble','رخام'],['other','أخرى']];
