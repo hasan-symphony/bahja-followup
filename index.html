@@ -101,6 +101,7 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
     <button data-tab="steel">الحديد</button>
     <button data-tab="certs">المستخلصات</button>
     <button data-tab="boq">المقايسة</button>
+    <button data-tab="pace">معدل التنفيذ</button>
     <button data-tab="docs">المستندات</button>
     <button data-tab="team">الفريق</button>
     <button data-tab="import" class="adm-only">استيراد</button>
@@ -288,6 +289,25 @@ tbody tr:nth-child(even) td{background:#fbfcfe}
       <div class="card">
         <h2>البنود <span>اربط كل بند بالصبة اللي جواه عشان تشوف الهندسي بتاعها جنب المنفذ</span></h2>
         <div class="tw"><table id="boqTable"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-pace" class="hidden">
+      <div class="card">
+        <h2>معدل التنفيذ <span>المدة بين صب العنصر والعنصر اللي قبله، بالترتيب: قواعد ثم أساسات ثم كل دور (أعمدة ثم سقف)</span></h2>
+        <div class="muted">كل فاصل بيتحسب لوحده، والعناصر اللي للفاصلين (كلاهما) بتدخل في الاتنين.</div>
+      </div>
+      <div class="card">
+        <h2>متوسط مدة تنفيذ كل نوع عنصر</h2>
+        <div class="tw"><table id="paceTypes"></table></div>
+      </div>
+      <div class="card">
+        <h2>متوسط مدة تنفيذ كل دور</h2>
+        <div class="tw"><table id="paceFloors"></table></div>
+      </div>
+      <div class="card">
+        <h2>تفاصيل كل عنصر</h2>
+        <div class="tw"><table id="paceRows"></table></div>
       </div>
     </section>
 
@@ -526,7 +546,7 @@ async function loadRole(){
   $('who').textContent = (user ? user.email : '') + ' · ' + (ROLE_LABEL[ROLE] || 'بدون صلاحية');
 }
 
-const TABS = ['home','dash','reports','schedule','concrete','receipts','plants','steel','certs','boq','docs','team','import'];
+const TABS = ['home','dash','reports','schedule','concrete','receipts','plants','steel','certs','boq','pace','docs','team','import'];
 function switchTab(tab){
   if(!ADM() && (tab === 'dash' || tab === 'import')) tab = 'home';
   TABS.forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
@@ -585,6 +605,7 @@ function renderAll(){
   renderSteel();
   renderCerts();
   renderBoq();
+  renderPace();
   renderDocs();
   renderSchedule();
   renderHome();
@@ -929,6 +950,56 @@ function exportBQ(){
   XLSX.writeFile(wb, 'كميات_المقايسة.xlsx');
 }
 $('bqcExport').addEventListener('click', exportBQ);
+
+// ترتيب العناصر في كل فاصل: قواعد عادية، أساسات مسلحة، ثم كل دور (أعمدة قبل السقف)
+function paceOrder(g){
+  const label = (g.name || '').split(' · ')[0];
+  if(g.type === 'lean') return 0;
+  if(g.type === 'found') return 1;
+  const fi = FLOORS.indexOf(g.floor);
+  if(fi < 0) return 900;
+  return 2 + fi * 2 + (label === 'سقف' ? 1 : 0);
+}
+function paceRowsCalc(){
+  const out = [];
+  ['F1','F2'].forEach(F => {
+    const list = GROUPS.filter(g => (g.fasel === F || g.fasel === 'كلاهما') && (g.pours || []).length)
+      .map(g => ({ g, end: g.pours.map(p => p.pour_date).sort().pop(), ord: paceOrder(g) }))
+      .sort((a,b) => a.ord - b.ord || String(a.end).localeCompare(String(b.end)));
+    let prev = null;
+    list.forEach(x => {
+      const days = prev ? Math.round((D(x.end) - D(prev.end)) / 86400000) : null;
+      out.push({ fasel: F, name: x.g.name, floor: x.g.floor, label: (x.g.name || '').split(' · ')[0], end: x.end, prevName: prev ? prev.g.name : '—', prevEnd: prev ? prev.end : null, days });
+      prev = x;
+    });
+  });
+  return out;
+}
+function avg(arr){ const v = arr.filter(x => x != null && !isNaN(x)); return v.length ? v.reduce((a,b) => a + b, 0) / v.length : null; }
+function renderPace(){
+  if(!$('paceRows')) return;
+  const rows = paceRowsCalc();
+  const withDays = rows.filter(r => r.days != null);
+  // متوسط كل نوع عنصر
+  const types = {};
+  withDays.forEach(r => { (types[r.label] = types[r.label] || []).push(r.days); });
+  $('paceTypes').innerHTML = '<thead><tr><th>العنصر</th><th>عدد المرات</th><th>متوسط المدة (يوم)</th><th>أقل</th><th>أكتر</th></tr></thead><tbody>'
+    + (Object.keys(types).map(k => '<tr><td>' + esc(k) + '</td><td>' + types[k].length + '</td><td>' + fmt(avg(types[k])) + '</td><td>' + Math.min(...types[k]) + '</td><td>' + Math.max(...types[k]) + '</td></tr>').join('') || '<tr><td colspan="5" class="muted">مفيش بيانات كفاية (لازم صبتين على الأقل)</td></tr>')
+    + '</tbody>';
+  // مدة كل دور = مجموع مدد عناصره في الفاصل (متوسط الفاصلين)
+  const floors = {};
+  FLOORS.forEach(f => {
+    const per = ['F1','F2'].map(F => withDays.filter(r => r.fasel === F && r.floor === f).reduce((a,r) => a + r.days, 0)).filter(x => x > 0);
+    if(per.length) floors[f] = avg(per);
+  });
+  $('paceFloors').innerHTML = '<thead><tr><th>الدور</th><th>متوسط مدة تنفيذ الدور كله (يوم)</th></tr></thead><tbody>'
+    + (Object.keys(floors).map(f => '<tr><td>' + esc(f) + '</td><td>' + fmt(floors[f]) + '</td></tr>').join('') || '<tr><td colspan="2" class="muted">مفيش بيانات كفاية</td></tr>')
+    + '</tbody>';
+  // تفاصيل كل عنصر
+  $('paceRows').innerHTML = '<thead><tr><th>الفاصل</th><th>العنصر</th><th>آخر صب للعنصر</th><th>العنصر اللي قبله</th><th>تاريخ الصب السابق</th><th>المدة (يوم)</th></tr></thead><tbody>'
+    + (rows.map(r => '<tr><td>' + r.fasel + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.end) + '</td><td>' + esc(r.prevName) + '</td><td>' + esc(r.prevEnd || '—') + '</td><td>' + (r.days == null ? '—' : r.days) + '</td></tr>').join('') || '<tr><td colspan="6" class="muted">مفيش صبات</td></tr>')
+    + '</tbody>';
+}
 
 function renderBoq(){
   renderBQ();
