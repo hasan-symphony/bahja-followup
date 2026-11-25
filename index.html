@@ -955,12 +955,19 @@ function exportBQ(){
 }
 $('bqcExport').addEventListener('click', exportBQ);
 
+// توحيد أسماء الأدوار (البيانات القديمة فيها "البدروم" و"الأرضي" و"الأول" بـ"ال")
+const FLOOR_ALIAS = { 'ثاني':'تاني', 'ثالث':'تالت', 'ثالثه':'تالت' };
+function normFloor(f){
+  let x = String(f || '').trim();
+  if(x.startsWith('ال')) x = x.slice(2);
+  return FLOOR_ALIAS[x] || x;
+}
 // معدل التنفيذ: الأساسات مرة للمبنى، والأعمدة والسقف لكل دور ولكل فاصل
 function avg(arr){ const v = arr.filter(x => x != null && !isNaN(x)); return v.length ? v.reduce((a,b) => a + b, 0) / v.length : null; }
 function groupEnd(g){ return g && (g.pours || []).length ? g.pours.map(p => p.pour_date).sort().pop() : null; }
 function daysBetween(a, b){ return a && b ? Math.round((D(a) - D(b)) / 86400000) : null; }
 function paceCalc(){
-  const pick = (floor, label, F) => GROUPS.filter(g => g.floor === floor && (g.name || '').split(' · ')[0] === label && (g.fasel === F || g.fasel === 'كلاهما'))
+  const pick = (floor, label, F) => GROUPS.filter(g => normFloor(g.floor) === floor && (g.name || '').split(' · ')[0] === label && (g.fasel === F || g.fasel === 'كلاهما'))
     .map(groupEnd).filter(Boolean).sort().pop() || null;
   const lean = GROUPS.filter(g => g.type === 'lean').map(groupEnd).filter(Boolean).sort().pop() || null;
   const found = GROUPS.filter(g => g.type === 'found').map(groupEnd).filter(Boolean).sort().pop() || null;
