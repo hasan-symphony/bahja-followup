@@ -789,14 +789,38 @@ async function saveReceipt(){
   await refreshAll();
 }
 
+// إحصائيات كل محطة: الفعلي = إيصالاتها، والهندسي = نصيبها من الهندسي المصبوب للصبات اللي استخدمتها (بنسبة كمية إيصالاتها في كل صبة)
+function plantStats(){
+  const res = {};
+  const ensure = id => res[id] || (res[id] = { act: 0, eng: 0, n: 0 });
+  GROUPS.forEach(g => {
+    const recs = RECEIPTS.filter(r => r.group_id === g.id);
+    const totalM3 = recs.reduce((a,r) => a + Number(r.m3 || 0), 0);
+    const poursEng = (g.pours || []).reduce((a,p) => a + Number(p.eng_qty || 0), 0);
+    recs.forEach(r => {
+      const x = ensure(r.plant_id || 'none');
+      x.act += Number(r.m3 || 0); x.n++;
+      if(totalM3) x.eng += poursEng * Number(r.m3 || 0) / totalM3;
+    });
+  });
+  RECEIPTS.filter(r => !r.group_id).forEach(r => { const x = ensure(r.plant_id || 'none'); x.act += Number(r.m3 || 0); x.n++; });
+  return res;
+}
 function renderPlants(){
-  const tot = {};
-  RECEIPTS.forEach(r => { tot[r.plant_id] = (tot[r.plant_id] || 0) + Number(r.m3 || 0); });
-  const all = Object.values(tot).reduce((a,b) => a + b, 0);
-  const rows = PLANTS.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + fmt(tot[p.id] || 0) + '</td><td>' + (all ? pctTxt((tot[p.id] || 0) / all * 100) : '—') + '</td>'
-    + '<td><button class="btn small ghost adm-btn" data-eplant="' + p.id + '">تعديل</button> <button class="btn small ghost adm-btn" data-dplant="' + p.id + '">حذف</button></td></tr>').join('');
-  $('plantTable').innerHTML = '<thead><tr><th>المحطة</th><th>م³</th><th>النسبة</th><th></th></tr></thead>'
-    + '<tbody>' + (rows || '<tr><td colspan="4" class="muted">مفيش محطات لسه</td></tr>') + '<tr><td><b>الإجمالي</b></td><td><b>' + fmt(all) + '</b></td><td></td><td></td></tr></tbody>';
+  const st = plantStats();
+  const all = Object.values(st).reduce((a,x) => a + x.act, 0);
+  const sumEng = Object.values(st).reduce((a,x) => a + x.eng, 0);
+  const row = (name, x, id) => {
+    const waste = x.eng ? (x.act - x.eng) / x.eng * 100 : null;
+    return '<tr><td>' + esc(name) + '</td><td>' + x.n + '</td><td>' + fmt(x.act) + '</td><td>' + fmt(x.eng) + '</td>'
+      + '<td>' + fmt(x.eng ? x.act - x.eng : null) + '</td><td>' + pctTxt(waste) + '</td>'
+      + '<td>' + (all ? pctTxt(x.act / all * 100) : '—') + '</td>' + (id ? '<td><button class="btn small ghost adm-btn" data-eplant="' + id + '">تعديل</button> <button class="btn small ghost adm-btn" data-dplant="' + id + '">حذف</button></td>' : '<td></td>') + '</tr>';
+  };
+  const rows = PLANTS.map(p => row(p.name, st[p.id] || { act: 0, eng: 0, n: 0 }, p.id)).join('')
+    + (st.none ? row('بدون محطة', st.none, null) : '');
+  $('plantTable').innerHTML = '<thead><tr><th>المحطة</th><th>عدد الإيصالات</th><th>الفعلي م³</th><th>الهندسي م³</th><th>الهالك م³</th><th>نسبة الهالك</th><th>النسبة من الإجمالي</th><th></th></tr></thead>'
+    + '<tbody>' + (rows || '<tr><td colspan="8" class="muted">مفيش محطات لسه</td></tr>')
+    + '<tr><td><b>الإجمالي</b></td><td></td><td><b>' + fmt(all) + '</b></td><td><b>' + fmt(sumEng) + '</b></td><td><b>' + fmt(all - sumEng) + '</b></td><td><b>' + pctTxt(sumEng ? (all - sumEng) / sumEng * 100 : null) + '</b></td><td></td><td></td></tr></tbody>';
   $('plantTable').querySelectorAll('[data-eplant]').forEach(b => b.addEventListener('click', () => editPlant(b.dataset.eplant)));
   $('plantTable').querySelectorAll('[data-dplant]').forEach(b => b.addEventListener('click', () => deletePlant(b.dataset.dplant)));
 }
